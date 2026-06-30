@@ -1,0 +1,25 @@
+# Environment — NEVER commit this
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+*.egg-info/
+dist/
+build/
+
+# Database & backups
+data/
+logs/
+
+# Mini App
+miniapp/node_modules/
+miniapp/.next/
+miniapp/.env.local
+
+# OS
+.DS_Store
+Thumbs.db

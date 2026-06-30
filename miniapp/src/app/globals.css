@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  background-color: #0a0a0f;
+  color: #ffffff;
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+  /* Telegram Mini App safe area */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 0; }
+
+/* Smooth transitions */
+* { transition-property: background-color, border-color, color, opacity, transform;
+    transition-duration: 150ms; transition-timing-function: ease; }
+
+@layer components {
+  .card {
+    @apply bg-[#111118] border border-[#2a2a3a] rounded-2xl;
+  }
+  .card-elevated {
+    @apply bg-[#1a1a24] border border-[#2a2a3a] rounded-2xl;
+  }
+  .btn-primary {
+    @apply bg-accent-gradient text-white font-semibold rounded-2xl px-6 py-3
+           shadow-accent active:scale-95 transition-transform;
+    background: linear-gradient(135deg, #6c63ff 0%, #4f8eff 100%);
+  }
+  .btn-secondary {
+    @apply bg-[#1a1a24] border border-[#2a2a3a] text-white font-medium
+           rounded-2xl px-4 py-2 active:scale-95 transition-transform;
+  }
+  .tag-sale {
+    @apply bg-[#ff4f6e] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase;
+  }
+  .tag-new {
+    @apply bg-[#6c63ff] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase;
+  }
+  .badge {
+    @apply text-[11px] font-medium px-3 py-1 rounded-full;
+  }
+  .nav-item {
+    @apply flex flex-col items-center gap-1 text-[11px] font-medium
+           text-[#555566] transition-colors;
+  }
+  .nav-item.active {
+    @apply text-[#6c63ff];
+  }
+  .input {
+    @apply bg-[#1a1a24] border border-[#2a2a3a] text-white rounded-xl
+           px-4 py-3 w-full outline-none focus:border-[#6c63ff]
+           placeholder:text-[#555566];
+  }
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #6c63ff 0%, #4f8eff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow effect */
+.glow {
+  box-shadow: 0 0 24px #6c63ff44;
+}
+
+/* Pulse animation for live badge */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+
+/* Shimmer loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #1a1a24 25%, #2a2a3a 50%, #1a1a24 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Slide up animation */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.slide-up { animation: slideUp 0.3s ease forwards; }
+
+/* Bottom nav blur */
+.bottom-nav {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(10, 10, 15, 0.92);
+  border-top: 1px solid #2a2a3a;
+}
