@@ -20,6 +20,7 @@ export default function BuyModal({ product, userId, onClose, onSuccess }: Props)
   const [error, setError] = useState("");
   const [order, setOrder] = useState<CreateOrderResult | null>(null);
   const [deliveredLinks, setDeliveredLinks] = useState<string[]>([]);
+  const network = "USDT_ETH";
 
   const total = (product.price * qty).toFixed(2);
 
@@ -39,7 +40,7 @@ export default function BuyModal({ product, userId, onClose, onSuccess }: Props)
     try {
       const twa = getTWA();
       const initData = twa?.initData || "";
-      const result = await createOrder(userId, product.id, qty, initData);
+      const result = await createOrder(userId, product.id, qty, network, initData);
       setOrder(result);
       setState("payment");
     } catch (err: unknown) {
@@ -190,6 +191,49 @@ export default function BuyModal({ product, userId, onClose, onSuccess }: Props)
           ))}
         </div>
 
+        {/* Network Info */}
+        <div className="card-elevated p-4 rounded-2xl mb-4">
+          <p className="text-[#8888aa] text-sm mb-3">Payment Network</p>
+          <div className="flex flex-col gap-2">
+            <button className="w-full py-3 px-4 rounded-xl text-sm font-semibold border border-[#f3ba2f] text-white flex items-center justify-center gap-2"
+                 style={{ background: "linear-gradient(135deg, #f3ba2f33 0%, #f3ba2f11 100%)", borderColor: "#f3ba2f" }}>
+              <span className="text-lg">🔶</span>
+              Binance Pay
+            </button>
+            <button className="w-full py-3 px-4 rounded-xl text-sm font-semibold border border-[#f7a600] text-white flex items-center justify-center gap-2"
+                 style={{ background: "linear-gradient(135deg, #f7a60033 0%, #f7a60011 100%)", borderColor: "#f7a600" }}>
+              <span className="text-lg">⬛</span>
+              Bybit Transfer (UID)
+            </button>
+            <button className="w-full py-3 px-4 rounded-xl text-sm font-semibold border border-[#26a17b] text-white flex items-center justify-center gap-2"
+                 style={{ background: "linear-gradient(135deg, #26a17b33 0%, #26a17b11 100%)", borderColor: "#26a17b" }}>
+              <span className="text-lg">🟢</span>
+              USDT BEP20
+            </button>
+            <button className="w-full py-3 px-4 rounded-xl text-sm font-semibold border border-[#26a17b] text-white flex items-center justify-center gap-2"
+                 style={{ background: "linear-gradient(135deg, #26a17b33 0%, #26a17b11 100%)", borderColor: "#26a17b" }}>
+              <span className="text-lg">🟢</span>
+              USDT TRC20
+            </button>
+            <button className="w-full py-3 px-4 rounded-xl text-sm font-semibold border border-[#2775ca] text-white flex items-center justify-center gap-2"
+                 style={{ background: "linear-gradient(135deg, #2775ca33 0%, #2775ca11 100%)", borderColor: "#2775ca" }}>
+              <span className="text-lg">💵</span>
+              USDC (BEP20)
+            </button>
+            <button className="w-full py-3 px-4 rounded-xl text-sm font-semibold border border-[#2775ca] text-white flex items-center justify-center gap-2"
+                 style={{ background: "linear-gradient(135deg, #2775ca33 0%, #2775ca11 100%)", borderColor: "#2775ca" }}>
+              <span className="text-lg">💵</span>
+              USDC (ERC20)
+            </button>
+            
+            <button className="w-full py-3 px-4 rounded-xl text-sm font-semibold border border-[#6c63ff] text-white flex items-center justify-center gap-2 mt-2 transition-all active:scale-95"
+                 style={{ background: "linear-gradient(135deg, #6c63ff33 0%, #6c63ff11 100%)", borderColor: "#6c63ff" }}>
+              <span className="text-lg">💰</span>
+              Deposit $0.65 more → Pay from Balance
+            </button>
+          </div>
+        </div>
+
         {/* Total */}
         <div className="flex items-center justify-between mb-5 p-4 bg-[#1a1a24] rounded-2xl">
           <span className="text-[#8888aa]">Total</span>
@@ -206,7 +250,8 @@ export default function BuyModal({ product, userId, onClose, onSuccess }: Props)
         <button
           onClick={handleConfirm}
           disabled={state === "creating" || !product.stock}
-          className="w-full btn-primary py-4 text-base flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full py-4 rounded-2xl text-base font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50 transition-transform active:scale-95"
+          style={{ background: "linear-gradient(135deg, #22d3a5 0%, #1ab88f 100%)", boxShadow: "0 4px 15px rgba(34, 211, 165, 0.3)" }}
         >
           {state === "creating" ? (
             <>
@@ -216,7 +261,7 @@ export default function BuyModal({ product, userId, onClose, onSuccess }: Props)
           ) : (
             <>
               <ShoppingCart size={18} />
-              Pay ${total} with USDT
+              Pay ${total} with ETH
             </>
           )}
         </button>

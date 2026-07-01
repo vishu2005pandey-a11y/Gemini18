@@ -1,6 +1,6 @@
 """
 Test premium emoji rendering.
-Run: .\venv\Scripts\python test_emoji.py
+Run: .\\venv\\Scripts\\python test_emoji.py
 """
 import asyncio
 from dotenv import load_dotenv

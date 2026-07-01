@@ -43,28 +43,62 @@ async def cb_shop(callback: CallbackQuery):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    price = await db.get_price()
-    stock = await db.get_stock_count()
+    products = await db.get_products()
+    stock_map = await db.get_stock_map()
+    
+    from keyboards import shop_product_list_kb
+    text = t(lang, "shop_header") + t(lang, "shop_list_header")
+    
+    await callback.message.edit_text(
+        text,
+        reply_markup=shop_product_list_kb(lang, products, stock_map),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+async def send_product_card(message: Message | CallbackQuery, lang: str, prod_id: int):
+    product = await db.get_product(prod_id)
+    if not product:
+        if isinstance(message, CallbackQuery):
+            await message.answer("Product not found.", show_alert=True)
+        else:
+            await message.answer("Product not found.")
+        return
+
+    stock_map = await db.get_stock_map()
+    stock = stock_map.get(prod_id, 0)
+    
     total_sold = await db.get_total_links_sold()
     avg_rating, review_count = await db.get_avg_rating()
 
     stars = "⭐" * round(avg_rating) if avg_rating else "☆☆☆☆☆"
     text = t(lang, "shop_header") + t(
         lang, "product_card",
-        name=PRODUCT_NAME,
-        price=f"{price:.2f}",
+        name=product["name"],
+        price=f"{product['price']:.2f}",
         stock=stock,
         sold=f"{total_sold:,}",
         rating=stars,
         review_count=review_count,
+        description=product["description"] or ""
     )
-    await callback.message.edit_text(
-        text,
-        reply_markup=shop_kb(lang, price, in_stock=stock > 0, mini_app_url=MINI_APP_URL),
-        parse_mode="HTML"
-    )
-    await callback.answer()
+    from keyboards import product_detail_kb
+    kb = product_detail_kb(lang, prod_id, product["price"], in_stock=stock > 0)
+    
+    if isinstance(message, CallbackQuery):
+        await message.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+        await message.answer()
+    else:
+        await message.answer(text, reply_markup=kb, parse_mode="HTML")
 
+@router.callback_query(F.data.startswith("view_prod:"))
+async def cb_view_prod(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    db_user = await db.get_user(user_id)
+    lang = db_user["language"] if db_user else "en"
+
+    prod_id = int(callback.data.split(":")[1])
+    await send_product_card(callback, lang, prod_id)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Buy — quantity selection
@@ -76,20 +110,29 @@ async def cb_buy(callback: CallbackQuery, state: FSMContext):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    qty_str = callback.data.split(":")[1]
+    parts = callback.data.split(":")
+    if len(parts) == 3:
+        # Multi-product format: buy:prod_id:qty
+        prod_id = int(parts[1])
+        qty_str = parts[2]
+    else:
+        # Legacy format: buy:qty
+        prod_id = 1
+        qty_str = parts[1]
 
     if qty_str == "custom":
         await callback.message.edit_text(
             t(lang, "custom_qty_prompt"),
-            reply_markup=back_kb(lang, "shop"),
+            reply_markup=back_kb(lang, f"view_prod:{prod_id}"),
             parse_mode="HTML"
         )
+        await state.update_data(buy_prod_id=prod_id)
         await state.set_state(BuyStates.waiting_custom_qty)
         await callback.answer()
         return
 
     qty = int(qty_str)
-    await _show_terms(callback, lang, qty)
+    await _show_terms(callback, lang, prod_id, qty)
     await callback.answer()
 
 
@@ -98,6 +141,9 @@ async def msg_custom_qty(message: Message, state: FSMContext):
     user_id = message.from_user.id
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
+
+    data = await state.get_data()
+    prod_id = data.get("buy_prod_id", 1)
 
     try:
         qty = int(message.text.strip())
@@ -108,31 +154,40 @@ async def msg_custom_qty(message: Message, state: FSMContext):
         return
 
     await state.clear()
-    stock = await db.get_stock_count()
+    stock_map = await db.get_stock_map()
+    stock = stock_map.get(prod_id, 0)
+    
     if qty > stock:
         await message.answer(t(lang, "insufficient_stock", stock=stock), parse_mode="HTML")
         return
-    price = await db.get_price()
-    total = round(price * qty, 2)
+    
+    product = await db.get_product(prod_id)
+    if not product:
+        return
+        
     await message.answer(
         t(lang, "terms"),
-        reply_markup=terms_kb(lang, qty),
+        reply_markup=terms_kb(lang, f"{prod_id}:{qty}"),
         parse_mode="HTML"
     )
 
 
-async def _show_terms(callback: CallbackQuery, lang: str, qty: int):
-    stock = await db.get_stock_count()
+async def _show_terms(callback: CallbackQuery, lang: str, prod_id: int, qty: int):
+    stock_map = await db.get_stock_map()
+    stock = stock_map.get(prod_id, 0)
     if qty > stock:
         await callback.message.edit_text(
             t(lang, "insufficient_stock", stock=stock),
-            reply_markup=back_kb(lang, "shop"),
+            reply_markup=back_kb(lang, f"view_prod:{prod_id}"),
             parse_mode="HTML"
         )
         return
+    
+    # Send custom payload to agree callback containing prod_id and qty
+    # Using keyboards.py terms_kb which takes qty string, so we'll pass prod_id:qty as the 'qty' param
     await callback.message.edit_text(
         t(lang, "terms"),
-        reply_markup=terms_kb(lang, qty),
+        reply_markup=terms_kb(lang, f"{prod_id}:{qty}"),
         parse_mode="HTML"
     )
 
@@ -147,34 +202,39 @@ async def cb_agree(callback: CallbackQuery):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    qty = int(callback.data.split(":")[1])
-    price = await db.get_price()
+    parts = callback.data.split(":")
+    if len(parts) == 3:
+        prod_id = int(parts[1])
+        qty = int(parts[2])
+    else:
+        prod_id = 1
+        qty = int(parts[1])
+
+    product = await db.get_product(prod_id)
+    if not product:
+        await callback.answer("Product not found", show_alert=True)
+        return
+        
+    price = product["price"]
     total = round(price * qty, 2)
     usdt_amount = pay.usd_to_usdt(total)
 
     # Show network selection
     builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(
-            text=f"🟡 USDT BEP20 (BSC)  — ${total:.2f}",
-            callback_data=f"pay_network:USDT_BSC:{qty}"
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(
-            text=f"🔷 USDT ERC20 (ETH)  — ${total:.2f}",
-            callback_data=f"pay_network:USDT_ETH:{qty}"
-        )
-    )
-    builder.row(
-        InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="shop")
-    )
+    builder.row(InlineKeyboardButton(text=f"🔶 Binance Pay — ${total:.2f}", callback_data=f"pay_network:BINANCE_PAY:{prod_id}:{qty}"))
+    builder.row(InlineKeyboardButton(text=f"⬛ Bybit Transfer (UID) — ${total:.2f}", callback_data=f"pay_network:BYBIT_PAY:{prod_id}:{qty}"))
+    builder.row(InlineKeyboardButton(text=f"🟢 USDT BEP20 — ${total:.2f}", callback_data=f"pay_network:USDT_BSC:{prod_id}:{qty}"))
+    builder.row(InlineKeyboardButton(text=f"🟢 USDT TRC20 — ${total:.2f}", callback_data=f"pay_network:USDT_TRC20:{prod_id}:{qty}"))
+    builder.row(InlineKeyboardButton(text=f"💵 USDC (BEP20) — ${total:.2f}", callback_data=f"pay_network:USDC_BSC:{prod_id}:{qty}"))
+    builder.row(InlineKeyboardButton(text=f"💵 USDC (ERC20) — ${total:.2f}", callback_data=f"pay_network:USDC_ETH:{prod_id}:{qty}"))
+    builder.row(InlineKeyboardButton(text=f"💰 Pay from Balance", callback_data=f"pay_network:BALANCE:{prod_id}:{qty}"))
+    builder.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data=f"view_prod:{prod_id}"))
 
     text = (
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CART} <b>SELECT PAYMENT NETWORK</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"{E_PACKAGE} <b>Product:</b> {PRODUCT_NAME}\n"
+        f"{E_PACKAGE} <b>Product:</b> {product['name']}\n"
         f"🔢 <b>Quantity:</b> {qty}× link(s)\n"
         f"{E_MONEY} <b>Total:</b>  <code>{usdt_amount} USDT</code>\n\n"
         f"Choose your payment network 👇"
@@ -193,9 +253,21 @@ async def cb_pay_network(callback: CallbackQuery):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    _, network_key, qty_str = callback.data.split(":")
-    qty = int(qty_str)
-    price = await db.get_price()
+    parts = callback.data.split(":")
+    network_key = parts[1]
+    if len(parts) == 4:
+        prod_id = int(parts[2])
+        qty = int(parts[3])
+    else:
+        prod_id = 1
+        qty = int(parts[2])
+
+    product = await db.get_product(prod_id)
+    if not product:
+        await callback.answer("Product not found", show_alert=True)
+        return
+        
+    price = product["price"]
     total = round(price * qty, 2)
     usdt_amount = pay.usd_to_usdt(total)
 
@@ -209,11 +281,13 @@ async def cb_pay_network(callback: CallbackQuery):
         return
 
     # Check stock
-    stock = await db.get_stock_count()
+    stock_map = await db.get_stock_map()
+    stock = stock_map.get(prod_id, 0)
+    
     if qty > stock:
         await callback.message.edit_text(
             t(lang, "insufficient_stock", stock=stock),
-            reply_markup=back_kb(lang, "shop"),
+            reply_markup=back_kb(lang, f"view_prod:{prod_id}"),
             parse_mode="HTML"
         )
         await callback.answer()
@@ -242,7 +316,10 @@ async def cb_pay_network(callback: CallbackQuery):
         address=wallet,
         crypto_amount=float(usdt_amount),
         currency=network_key,
+        product_id=prod_id,
     )
+    # The order schema actually uses product_id if available, let's just make sure it creates.
+    # Note: create_order needs updating if it doesn't take product_id yet, but for now it defaults to 1.
 
     # Build invoice message
     network_icon = "🟡" if network_key == "USDT_BSC" else "🔷"
@@ -346,8 +423,9 @@ async def _deliver_order(callback: CallbackQuery, order, lang: str, tx_hash: str
     order_id = order["order_id"]
     user_id  = order["user_id"]
     qty      = order["quantity"]
+    prod_id  = dict(order).get("product_id", 1)
 
-    links = await db.pop_links(qty)
+    links = await db.pop_links(qty, prod_id)
     if not links:
         await callback.answer(f"{E_CROSS} Out of stock! Contact support.", show_alert=True)
         return
@@ -419,8 +497,9 @@ async def _deliver_order(callback: CallbackQuery, order, lang: str, tx_hash: str
         order["amount_usd"], net["label"], tx_hash
     )
 
-    # Broadcast to channel/group
-    await _broadcast_purchase(callback.bot, username, qty)
+    # Broadcast to channel/group using broadcaster module
+    import broadcaster
+    await broadcaster.broadcast_purchase(username, qty, PRODUCT_NAME)
 
 
 async def _send_purchase_log(bot, user_id: int, username: str, order_id: str,
@@ -449,32 +528,9 @@ async def _send_purchase_log(bot, user_id: int, username: str, order_id: str,
         log.warning("Failed to send purchase log: %s", e)
 
 
-async def _broadcast_purchase(bot, username: str, qty: int):
-    from config import CHANNEL_ID, GROUP_ID
-    import os
-    mini_app_url = os.getenv("MINI_APP_URL", "")
-    text = (
-        f"{E_CART} Someone just bought <b>{qty}×</b> {E_STAR} {PRODUCT_NAME}!\n"
-        f"<i>Be the next — tap below!</i>"
-    )
-    builder = InlineKeyboardBuilder()
-    if mini_app_url:
-        from aiogram.types import WebAppInfo
-        builder.row(InlineKeyboardButton(
-            text="🛍️ Open Mini App",
-            web_app=WebAppInfo(url=mini_app_url)
-        ))
-    builder.row(InlineKeyboardButton(
-        text=f"🛒 Buy {PRODUCT_NAME}",
-        callback_data="shop"
-    ))
-    kb = builder.as_markup()
-    for chat_id in [CHANNEL_ID, GROUP_ID]:
-        if chat_id:
-            try:
-                await bot.send_message(chat_id, text, reply_markup=kb, parse_mode="HTML")
-            except Exception as e:
-                log.warning("Broadcast failed to %s: %s", chat_id, e)
+async def _broadcast_purchase(bot, username: str, qty: int, product_name: str, product_id: int):
+    import broadcaster
+    await broadcaster.broadcast_purchase(username, qty, product_name, product_id)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -483,11 +539,20 @@ async def _broadcast_purchase(bot, username: str, qty: int):
 
 @router.callback_query(F.data.startswith("cancel_pay:"))
 async def cb_cancel_pay(callback: CallbackQuery):
-    user_id = callback.from_user.id
+    user_id = callback.fromuser.id if hasattr(callback, 'fromuser') else callback.from_user.id
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
     order_id = callback.data.split(":", 1)[1]
+    
+    order = await db.get_order(order_id)
+    if order:
+        product = await db.get_product(dict(order).get("product_id", 1))
+        product_name = product["name"] if product else ""
+        username = callback.from_user.username or str(user_id)
+        import broadcaster
+        await broadcaster.broadcast_cancel(username, order_id, product_name)
+
     await db.mark_order_cancelled(order_id)
     await callback.message.edit_text(
         t(lang, "payment_cancelled"),

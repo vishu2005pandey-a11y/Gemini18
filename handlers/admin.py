@@ -105,36 +105,28 @@ async def cb_admin_panel(callback: CallbackQuery):
 
 @router.callback_query(F.data == "admin:upload_stock")
 async def cb_admin_upload(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id): return
-    products = await db.get_products()
-    from aiogram.types import InlineKeyboardButton
-    from aiogram.utils.keyboard import InlineKeyboardBuilder
-    builder = InlineKeyboardBuilder()
-    for p in products:
-        stock = await db.get_stock_count(p['id'])
-        builder.row(InlineKeyboardButton(text=f"{p['name']} (Stock: {stock})", callback_data=f"admin:upstock:{p['id']}"))
-    builder.row(InlineKeyboardButton(text="🔙 Back", callback_data="admin:panel"))
-    await callback.message.edit_text("<b>Select Product to Upload Stock:</b>", reply_markup=builder.as_markup(), parse_mode="HTML")
-    await callback.answer()
-
-@router.callback_query(F.data.startswith("admin:upstock:"))
-async def cb_admin_upstock(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id): return
-    prod_id = int(callback.data.split(":")[2])
-    await state.update_data(upload_prod_id=prod_id)
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Admin only.", show_alert=True)
+        return
+    db_user = await db.get_user(callback.from_user.id)
+    lang = db_user["language"] if db_user else "en"
+    stock = await db.get_stock_count()
     await callback.message.edit_text(
-        f"📦 <b>Upload Stock</b>\n\nSend a <b>.txt file</b> with one redemption link per line.",
-        reply_markup=back_kb("en", "admin:upload_stock"),
+        f"{E_PACKAGE} <b>Upload Stock</b>\n\n"
+        f"📊 Current stock: <b>{stock}</b>\n\n"
+        f"Send a <b>.txt file</b> with one redemption link per line.\n\n"
+        f"<i>Example:\nhttps://gemini.google.com/redeem/abc123\nhttps://gemini.google.com/redeem/def456</i>",
+        reply_markup=back_kb(lang, "admin:panel"),
         parse_mode="HTML"
     )
     await state.set_state(AdminStates.waiting_stock_file)
     await callback.answer()
 
+
 async def _process_stock_file(message: Message, state: FSMContext):
     """Core logic to process uploaded stock file."""
     if not is_admin(message.from_user.id):
         return
-
     db_user = await db.get_user(message.from_user.id)
     lang = db_user["language"] if db_user else "en"
 
@@ -154,15 +146,12 @@ async def _process_stock_file(message: Message, state: FSMContext):
         return
 
     links = [line.strip() for line in content.splitlines() if line.strip()]
-
     if not links:
         await message.answer(f"{E_CROSS} File is empty — no links found.")
         return
 
-    data = await state.get_data()
-    prod_id = data.get("upload_prod_id", 1)
-    added = await db.add_stock(prod_id, links)
-    total = await db.get_stock_count(prod_id)
+    added = await db.add_stock(links)
+    total = await db.get_stock_count()
 
     await state.clear()
     await message.answer(
@@ -513,7 +502,7 @@ async def msg_referral_reward(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "admin:manage_products")
 async def cb_manage_products(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.fromuser_id if hasattr(callback, "fromuser_id") else callback.from_user.id):
+    if not is_admin(callback.from_user.id):
         return
     db_user = await db.get_user(callback.from_user.id)
     lang = db_user["language"] if db_user else "en"
@@ -529,7 +518,11 @@ async def cb_manage_products(callback: CallbackQuery, state: FSMContext):
     builder.row(InlineKeyboardButton(text="➕ Add Product", callback_data="admin:add_product"))
     builder.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="admin:panel"))
     
-    await callback.message.edit_text("<b>Manage Products</b>", reply_markup=builder.as_markup(), parse_mode="HTML")
+    from aiogram.exceptions import TelegramBadRequest
+    try:
+        await callback.message.edit_text("Manage Products:", reply_markup=builder.as_markup())
+    except TelegramBadRequest:
+        pass
     await callback.answer()
 
 @router.callback_query(F.data == "admin:add_product")
@@ -597,8 +590,11 @@ async def cb_edit_prod(callback: CallbackQuery, state: FSMContext):
     builder.row(InlineKeyboardButton(text="✏️ Edit", callback_data=f"admin:do_edit_prod:{prod_id}"))
     builder.row(InlineKeyboardButton(text="🗑️ Delete", callback_data=f"admin:del_prod:{prod_id}"))
     builder.row(InlineKeyboardButton(text="🔙 Back", callback_data="admin:manage_products"))
-    
-    await callback.message.edit_text(f"<b>{p['name']}</b>\nPrice: ${p['price']}\nDesc: {p['description']}", reply_markup=builder.as_markup(), parse_mode="HTML")
+    from aiogram.exceptions import TelegramBadRequest
+    try:
+        await callback.message.edit_text(f"<b>{p['name']}</b>\nPrice: ${p['price']}\nDesc: {p['description']}", reply_markup=builder.as_markup(), parse_mode="HTML")
+    except TelegramBadRequest:
+        pass
     await callback.answer()
 
 @router.callback_query(F.data.startswith("admin:do_edit_prod:"))

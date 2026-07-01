@@ -11,16 +11,20 @@ from locales.en import (
 STRINGS = {
     # ── Welcome / Force Join ─────────────────────────────────────────────
     "force_join_title": (
+        "<blockquote>\n"
         f"{E_WAVE} <b>¡Bienvenido a Alpha Shop!</b>\n\n"
         f"{E_LOCK} <b>Por favor únete a nuestra comunidad para continuar:</b>\n\n"
         "📢 <b>Canal:</b> <a href='{channel_link}'>Alpha Oficial</a>\n"
         "💬 <b>Grupo:</b> <a href='{group_link}'>Alpha Comunidad</a>\n\n"
         f"{E_CHECK} <i>Después de unirte, toca <b>\"Me Uní\"</b> abajo.</i>"
+        "</blockquote>"
     ),
     "force_join_not_member": (
+        "<blockquote>\n"
         f"{E_WARNING} <b>Acceso Denegado</b>\n\n"
         "Aún no te has unido a nuestro canal y grupo.\n"
         "Por favor únete a ambos e intenta nuevamente."
+        "</blockquote>"
     ),
     "btn_join_channel": "📢 Unirse al Canal",
     "btn_join_group":   "💬 Unirse al Grupo",
@@ -28,6 +32,7 @@ STRINGS = {
 
     # ── Main Menu ────────────────────────────────────────────────────────
     "welcome": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_LIGHTNING} <b>ALPHA SHOP</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -42,6 +47,7 @@ STRINGS = {
         "└──────────────────────────\n\n"
         f"{E_CHART} <b>{{links_sold}}+</b> links vendidos  •  <b>{{stock}}</b> disponibles\n\n"
         f"Elige una opción {E_FIRE}"
+        "</blockquote>"
     ),
     "btn_shop":        "🛍️  Tienda",
     "btn_profile":     "👤  Mi Perfil",
@@ -55,19 +61,24 @@ STRINGS = {
 
     # ── Shop ─────────────────────────────────────────────────────────────
     "shop_header": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CART} <b>ALPHA SHOP</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "</blockquote>"
     ),
     "shop_list_header": (
+        "<blockquote>\n"
         f"{E_CART} <b>Catálogo de productos</b>\n\n"
         f"{E_CHECK} Entrega automática al instante\n\n"
         "⬇️ Elige tu producto:"
+        "</blockquote>"
     ),
     "status_in_stock": "{stock} disponibles",
     "status_out_of_stock": "Sin stock",
     "btn_refresh_stock": "🔄 Actualizar Stock",
     "product_card": (
+        "<blockquote>\n"
         "╔══════════════════════════╗\n"
         f"  {E_ROBOT} <b>{{name}}</b>\n"
         "╚══════════════════════════╝\n\n"
@@ -80,10 +91,13 @@ STRINGS = {
         f"{E_STAR} <b>Rating:</b> {{rating}} ({{review_count}} reseñas)\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"Selecciona cantidad {E_FIRE}"
+        "</blockquote>"
     ),
     "out_of_stock": (
+        "<blockquote>\n"
         f"{E_CROSS} <b>Sin Stock</b>\n\n"
         "¡Pronto habrá reposición! Activa alertas de stock en tu perfil."
+        "</blockquote>"
     ),
     "btn_buy_1":      "1× Enlace — ${price}",
     "btn_buy_3":      "3× Enlaces — ${price}",
@@ -93,6 +107,7 @@ STRINGS = {
 
     # ── Terms ────────────────────────────────────────────────────────────
     "terms": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_SHIELD} <b>TÉRMINOS Y CONDICIONES</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -103,12 +118,14 @@ STRINGS = {
         f"{E_CLOCK} Activa tus enlaces <b>dentro del tiempo establecido</b>.\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "Al continuar aceptas estos términos."
+        "</blockquote>"
     ),
     "btn_agree":   "✅  Aceptar y Continuar",
     "btn_decline": "❌  Rechazar",
 
     # ── Payment ──────────────────────────────────────────────────────────
     "payment_invoice": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CARD} <b>FACTURA DE PAGO</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -125,15 +142,17 @@ STRINGS = {
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_LIGHTNING} Envía el monto exacto a la dirección.\n"
         "Entrega instantánea tras confirmación."
+        "</blockquote>"
     ),
     "btn_check_payment":  "🔄  Verificar Pago",
     "btn_cancel_payment": "❌  Cancelar Pedido",
-    "payment_pending":    f"{E_CLOCK} Pago aún no confirmado. Envía el monto exacto e intenta nuevamente.",
-    "payment_expired":    f"{E_CLOCK} <b>Pago Expirado</b>\n\nTu factura ha expirado. Por favor realiza un nuevo pedido.",
-    "payment_cancelled":  f"{E_CROSS} Pedido cancelado.",
+    "payment_pending":    f"<blockquote>\n{E_CLOCK} Pago aún no confirmado. Envía el monto exacto e intenta nuevamente.\n</blockquote>",
+    "payment_expired":    f"<blockquote>\n{E_CLOCK} <b>Pago Expirado</b>\n\nTu factura ha expirado. Por favor realiza un nuevo pedido.\n</blockquote>",
+    "payment_cancelled":  f"<blockquote>\n{E_CROSS} Pedido cancelado.\n</blockquote>",
 
     # ── Delivery ─────────────────────────────────────────────────────────
     "delivery_success": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CHECK} <b>¡PAGO CONFIRMADO!</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -145,10 +164,12 @@ STRINGS = {
         "🆔 <b>ID de Pedido:</b> <code>{{order_id}}</code>\n\n"
         f"{E_WARNING} ¡Activa tus enlaces dentro de 24 horas!\n"
         f"{E_SUPPORT} ¿Problemas? Usa /support"
+        "</blockquote>"
     ),
 
     # ── Profile ──────────────────────────────────────────────────────────
     "profile": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_DIAMOND} <b>MI PERFIL</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -167,16 +188,19 @@ STRINGS = {
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "{{achievements}}\n\n"
         f"{E_BELL} <b>Notificaciones:</b>  {{notifications}}"
+        "</blockquote>"
     ),
     "btn_toggle_notifications": "🔔  Notificaciones",
     "btn_change_language":      "🌐  Idioma",
 
     # ── Orders ───────────────────────────────────────────────────────────
     "orders_header": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_PACKAGE} <b>HISTORIAL DE PEDIDOS</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "Tienes <b>{count}</b> pedido(s).\n\n"
+        "</blockquote>"
     ),
     "order_item": (
         "🆔 <code>{order_id}</code>\n"
@@ -184,13 +208,16 @@ STRINGS = {
         "─────────────────────────\n"
     ),
     "no_orders": (
+        "<blockquote>\n"
         f"{E_PACKAGE} Aún no has realizado compras.\n\n"
         f"¡Ve a {E_CART} Tienda para comenzar!"
+        "</blockquote>"
     ),
     "btn_search_order": "🔍  Buscar Pedido",
 
     # ── Referral ─────────────────────────────────────────────────────────
     "referral_dashboard": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_GIFT} <b>REFERIR & GANAR</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -207,34 +234,41 @@ STRINGS = {
         f"{E_LINK} <b>Tu Enlace de Invitación:</b>\n"
         "<code>{referral_link}</code>\n\n"
         f"<i>{E_LIGHTNING} Recompensas solo tras la primera compra de tu amigo.</i>"
+        "</blockquote>"
     ),
     "btn_copy_link": "📋  Copiar Enlace",
     "btn_withdraw":  "💸  Retirar Ganancias",
 
     # ── Leaderboard ──────────────────────────────────────────────────────
     "leaderboard_weekly": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_TROPHY} <b>TOP COMPRADORES SEMANALES</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "{{entries}}\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CLOCK} Actualizado: {{updated}}"
+        "</blockquote>"
     ),
     "leaderboard_monthly": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_STAR} <b>TOP COMPRADORES MENSUALES</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "{{entries}}\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CLOCK} Actualizado: {{updated}}"
+        "</blockquote>"
     ),
     "leaderboard_alltime": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CROWN} <b>TOP COMPRADORES DE TODOS LOS TIEMPOS</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "{{entries}}\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CLOCK} Actualizado: {{updated}}"
+        "</blockquote>"
     ),
     "leaderboard_entry": "{{rank}}  {{username}}   {E_LINK} {{links}} enlaces",
     "btn_weekly":  "📅  Semanal",
@@ -243,19 +277,22 @@ STRINGS = {
 
     # ── Reviews ──────────────────────────────────────────────────────────
     "reviews_header": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_STAR} <b>RESEÑAS</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "Promedio: <b>{avg_rating}</b>/5  ({count} reseñas)\n\n"
         "{reviews}"
+        "</blockquote>"
     ),
     "review_item":         f"{E_STAR} {{stars}}  •  {{username}}\n<i>{{comment}}</i>\n─────────────────\n",
-    "leave_review_prompt": f"{E_STAR} <b>Dejar una Reseña</b>\n\nCalifica tu compra del 1 al 5:",
+    "leave_review_prompt": f"<blockquote>\n{E_STAR} <b>Dejar una Reseña</b>\n\nCalifica tu compra del 1 al 5:\n</blockquote>",
     "btn_leave_review":    "⭐  Dejar Reseña",
-    "review_saved":        f"{E_CHECK} ¡Gracias por tu reseña!",
+    "review_saved":        f"<blockquote>\n{E_CHECK} ¡Gracias por tu reseña!\n</blockquote>",
 
     # ── Support ──────────────────────────────────────────────────────────
     "support": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_SUPPORT} <b>SOPORTE</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -263,24 +300,28 @@ STRINGS = {
         f"{E_PACKAGE} <b>¿Problema con pedido?</b>  Usa /search.\n"
         "💬 <b>Soporte en vivo:</b> Contacta a un admin en el grupo.\n\n"
         "<i>Por favor incluye tu ID de Pedido al contactar soporte.</i>"
+        "</blockquote>"
     ),
 
     # ── Maintenance ──────────────────────────────────────────────────────
     "maintenance": (
+        "<blockquote>\n"
         f"{E_WARNING} <b>Modo Mantenimiento</b>\n\n"
         "Estamos actualizando el bot.\n"
         f"Por favor vuelve pronto. {E_CLOCK}\n\n"
         "<i>Disculpa las molestias.</i>"
+        "</blockquote>"
     ),
 
     # ── Notifications ────────────────────────────────────────────────────
-    "notifications_menu":  f"{E_BELL} <b>Configuración de Notificaciones</b>\n\nActiva o desactiva:",
-    "notif_stock":         "📦 Alertas de Stock",
-    "notif_announcements": "📢 Anuncios",
-    "notif_discounts":     "🏷️ Alertas de Descuentos",
+    "notifications_menu":  f"<blockquote>\n{E_BELL} <b>Configuración de Notificaciones</b>\n\nActiva o desactiva:\n</blockquote>",
+    "notif_stock":         "<blockquote>\n📦 Alertas de Stock\n</blockquote>",
+    "notif_announcements": "<blockquote>\n📢 Anuncios\n</blockquote>",
+    "notif_discounts":     "<blockquote>\n🏷️ Alertas de Descuentos\n</blockquote>",
 
     # ── Admin ────────────────────────────────────────────────────────────
     "admin_panel": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "⚙️ <b>PANEL ADMIN</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -291,6 +332,7 @@ STRINGS = {
         f"{E_LINK} <b>Links Vendidos:</b> {{links_sold}}\n"
         f"{E_CHART} <b>Stock:</b>          {{stock}} restantes\n\n"
         "Elige una acción 👇"
+        "</blockquote>"
     ),
     "btn_upload_stock":      "📤  Subir Stock",
     "btn_set_price":         "💲  Fijar Precio",
@@ -303,31 +345,32 @@ STRINGS = {
     "btn_referral_settings": "🎁  Config. Referidos",
 
     # ── Misc ─────────────────────────────────────────────────────────────
-    "error_generic":      f"{E_CROSS} Algo salió mal. Por favor intenta nuevamente.",
-    "banned":             "🚫 Has sido baneado de este bot.",
-    "custom_qty_prompt":  "✏️ Ingresa la cantidad que deseas comprar (1–100):",
-    "invalid_qty":        f"{E_CROSS} Cantidad inválida. Ingresa un número entre 1 y 100.",
-    "insufficient_stock": f"{E_CROSS} Stock insuficiente. Solo hay {{stock}} enlace(s) disponibles.",
+    "error_generic":      f"<blockquote>\n{E_CROSS} Algo salió mal. Por favor intenta nuevamente.\n</blockquote>",
+    "banned":             "<blockquote>\n🚫 Has sido baneado de este bot.\n</blockquote>",
+    "custom_qty_prompt":  "<blockquote>\n✏️ Ingresa la cantidad que deseas comprar (1–100):\n</blockquote>",
+    "invalid_qty":        f"<blockquote>\n{E_CROSS} Cantidad inválida. Ingresa un número entre 1 y 100.\n</blockquote>",
+    "insufficient_stock": f"<blockquote>\n{E_CROSS} Stock insuficiente. Solo hay {{stock}} enlace(s) disponibles.\n</blockquote>",
     "language_menu":      "🌐 <b>Seleccionar Idioma</b>",
     "btn_lang_en":        "🇬🇧 English",
     "btn_lang_es":        "🇪🇸 Español",
-    "search_prompt":      "🔍 Ingresa tu ID de Pedido para buscar:",
-    "order_not_found":    f"{E_CROSS} Pedido <code>{{order_id}}</code> no encontrado.",
-    "upload_stock_prompt":f"{E_PACKAGE} Envía un archivo .txt con un enlace por línea.",
-    "stock_uploaded":     f"{E_CHECK} <b>{{count}}</b> nuevos links cargados.\n{E_CHART} Stock total: <b>{{total}}</b>",
-    "price_set":          f"{E_CHECK} Precio actualizado a <code>${{price}}</code> por link.",
-    "broadcast_prompt":   "📢 Escribe tu mensaje de difusión:",
-    "broadcast_sent":     f"{E_CHECK} Difusión enviada a <b>{{count}}</b> usuarios.",
-    "ban_prompt":         "🚫 Ingresa el ID de usuario a banear:",
-    "ban_success":        f"{E_CHECK} Usuario <code>{{user_id}}</code> ha sido baneado.",
-    "unban_prompt":       "✅ Ingresa el ID de usuario a desbanear:",
-    "unban_success":      f"{E_CHECK} Usuario <code>{{user_id}}</code> ha sido desbaneado.",
-    "maintenance_on":     f"🔧 Modo mantenimiento <b>activado</b>.",
-    "maintenance_off":    f"{E_CHECK} Modo mantenimiento <b>desactivado</b>.",
-    "achievement_unlocked": f"{E_TROPHY} <b>¡Logro Desbloqueado!</b>\n\n{{label}}",
-    "new_badge":          f"{E_MEDAL} <b>¡Nueva Insignia!</b>\n\nHas ganado: {{badge}}",
-    "set_price_prompt":   f"{E_MONEY} Ingresa el nuevo precio por link (USD):",
+    "search_prompt":      "<blockquote>\n🔍 Ingresa tu ID de Pedido para buscar:\n</blockquote>",
+    "order_not_found":    f"<blockquote>\n{E_CROSS} Pedido <code>{{order_id}}</code> no encontrado.\n</blockquote>",
+    "upload_stock_prompt":f"<blockquote>\n{E_PACKAGE} Envía un archivo .txt con un enlace por línea.\n</blockquote>",
+    "stock_uploaded":     f"<blockquote>\n{E_CHECK} <b>{{count}}</b> nuevos links cargados.\n{E_CHART} Stock total: <b>{{total}}</b>\n</blockquote>",
+    "price_set":          f"<blockquote>\n{E_CHECK} Precio actualizado a <code>${{price}}</code> por link.\n</blockquote>",
+    "broadcast_prompt":   "<blockquote>\n📢 Escribe tu mensaje de difusión:\n</blockquote>",
+    "broadcast_sent":     f"<blockquote>\n{E_CHECK} Difusión enviada a <b>{{count}}</b> usuarios.\n</blockquote>",
+    "ban_prompt":         "<blockquote>\n🚫 Ingresa el ID de usuario a banear:\n</blockquote>",
+    "ban_success":        f"<blockquote>\n{E_CHECK} Usuario <code>{{user_id}}</code> ha sido baneado.\n</blockquote>",
+    "unban_prompt":       "<blockquote>\n✅ Ingresa el ID de usuario a desbanear:\n</blockquote>",
+    "unban_success":      f"<blockquote>\n{E_CHECK} Usuario <code>{{user_id}}</code> ha sido desbaneado.\n</blockquote>",
+    "maintenance_on":     f"<blockquote>\n🔧 Modo mantenimiento <b>activado</b>.\n</blockquote>",
+    "maintenance_off":    f"<blockquote>\n{E_CHECK} Modo mantenimiento <b>desactivado</b>.\n</blockquote>",
+    "achievement_unlocked": f"<blockquote>\n{E_TROPHY} <b>¡Logro Desbloqueado!</b>\n\n{{label}}\n</blockquote>",
+    "new_badge":          f"<blockquote>\n{E_MEDAL} <b>¡Nueva Insignia!</b>\n\nHas ganado: {{badge}}\n</blockquote>",
+    "set_price_prompt":   f"<blockquote>\n{E_MONEY} Ingresa el nuevo precio por link (USD):\n</blockquote>",
     "purchase_log": (
+        "<blockquote>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CART} <b>NUEVA COMPRA</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -338,10 +381,13 @@ STRINGS = {
         "💱 <b>Método:</b>    {{method}}\n"
         "📅 <b>Fecha:</b>     {{date}}\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━"
+        "</blockquote>"
     ),
     "low_stock_alert": (
+        "<blockquote>\n"
         f"{E_WARNING} <b>ALERTA: STOCK BAJO</b>\n\n"
         f"¡Solo quedan <b>{{stock}}</b> links! {E_FIRE}\n"
         "Por favor sube más stock."
+        "</blockquote>"
     ),
 }

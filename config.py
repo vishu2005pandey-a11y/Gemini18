@@ -19,15 +19,24 @@ GROUP_ID: int = int(os.getenv("GROUP_ID", "0"))
 GROUP_LINK: str = os.getenv("GROUP_LINK", "https://t.me/group")
 
 # ── Payment ─────────────────────────────────────────────────
-# BSC (BEP20 USDT)
-WALLET_ADDRESS_BSC:  str = os.getenv("WALLET_ADDRESS_BSC", "")
-BSCSCAN_API_KEY:     str = os.getenv("BSCSCAN_API_KEY", "")
-# ETH (ERC20 USDT)
+# ETH ERC20 (USDT/USDC) — Etherscan verified
 WALLET_ADDRESS_ETH:  str = os.getenv("WALLET_ADDRESS_ETH", "")
 ETHERSCAN_API_KEY:   str = os.getenv("ETHERSCAN_API_KEY", "")
 
+# BSC BEP20 (USDT/USDC) — same wallet or different
+WALLET_ADDRESS_BSC:  str = os.getenv("WALLET_ADDRESS_BSC", "")
+
+# TRC20 (Tron USDT)
+WALLET_ADDRESS_TRC20: str = os.getenv("WALLET_ADDRESS_TRC20", "")
+
+# Binance Pay UID
+BINANCE_PAY_UID: str = os.getenv("BINANCE_PAY_UID", "")
+
+# Bybit UID
+BYBIT_UID: str = os.getenv("BYBIT_UID", "")
+
 PAYMENT_TIMEOUT_MINUTES: int = int(os.getenv("PAYMENT_TIMEOUT_MINUTES", "30"))
-PAYMENT_CURRENCY: str = os.getenv("PAYMENT_CURRENCY", "USDT_BSC")  # USDT_BSC or USDT_ETH
+PAYMENT_CURRENCY: str = os.getenv("PAYMENT_CURRENCY", "USDT_ETH")
 
 # ── Product ──────────────────────────────────────────────────
 PRODUCT_NAME: str = os.getenv("PRODUCT_NAME", "Gemini Pro 18-Month Subscription")

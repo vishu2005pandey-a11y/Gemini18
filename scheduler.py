@@ -7,6 +7,7 @@ Alpha Bot — Scheduled Tasks
 """
 import logging
 from datetime import datetime
+import random
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import database as db
@@ -110,6 +111,27 @@ async def database_backup():
     await db.backup_database()
 
 
+async def send_fake_purchase():
+    """Send a fake purchase broadcast to the group to build FOMO."""
+    log.info("[fake_purchase] Triggered — checking products...")
+    try:
+        products = await db.get_products()
+        if not products:
+            log.warning("[fake_purchase] No products found in DB — skipping.")
+            return
+        
+        prod = random.choice(products)
+        qty = random.randint(1, 3)
+        
+        import broadcaster
+        from config import GROUP_ID
+        log.info("[fake_purchase] GROUP_ID=%s | Sending %sx '%s'", GROUP_ID, qty, prod['name'])
+        await broadcaster.broadcast_fake_purchase(qty, prod["name"], prod["id"])
+        log.info("[fake_purchase] Done — sent to group.")
+    except Exception as e:
+        log.error("[fake_purchase] Error: %s", e, exc_info=True)
+
+
 def setup_scheduler(bot) -> AsyncIOScheduler:
     """Create and configure the APScheduler instance."""
     scheduler = AsyncIOScheduler(timezone="UTC")
@@ -160,6 +182,15 @@ def setup_scheduler(bot) -> AsyncIOScheduler:
         "interval",
         hours=BACKUP_INTERVAL_HOURS,
         id="db_backup",
+    )
+
+    # Fake purchase broadcast — every 5 minutes (only to group)
+    scheduler.add_job(
+        send_fake_purchase,
+        "interval",
+        minutes=5,
+        next_run_time=datetime.utcnow(),  # trigger immediately on start
+        id="fake_purchase",
     )
 
     return scheduler

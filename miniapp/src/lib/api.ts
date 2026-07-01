@@ -165,16 +165,16 @@ export async function getReviews(): Promise<Review[]> {
   }
 }
 
-// ── Create Order ─────────────────────────────────────────────────────────────
 export async function createOrder(
   userId: number,
   productId: number,
   qty: number,
+  network: string,
   initData: string
 ): Promise<CreateOrderResult> {
   return apiFetch<CreateOrderResult>("/create_order", {
     method: "POST",
-    body: JSON.stringify({ user_id: userId, product_id: productId, qty, tg_init_data: initData }),
+    body: JSON.stringify({ user_id: userId, product_id: productId, qty, network, tg_init_data: initData }),
   });
 }
 

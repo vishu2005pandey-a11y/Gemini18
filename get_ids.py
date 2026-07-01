@@ -4,7 +4,7 @@ Run this script to find your Channel ID and Group ID.
 Steps:
 1. Add your bot as ADMIN to your channel AND group
 2. Send any message in both the channel and group
-3. Run: .\venv\Scripts\python get_ids.py
+3. Run: .\\venv\\Scripts\\python get_ids.py
 4. Copy the IDs shown and paste into .env
 """
 import asyncio

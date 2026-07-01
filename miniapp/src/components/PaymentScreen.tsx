@@ -116,10 +116,10 @@ export default function PaymentScreen({ order, onSuccess, onCancel }: Props) {
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base"
               style={{ background: "linear-gradient(135deg, #6c63ff22 0%, #4f8eff22 100%)", border: "1px solid #6c63ff44" }}>
-              ₮
+              🔷
             </div>
             <div>
-              <p className="text-white font-semibold">Pay with {order.currency}</p>
+              <p className="text-white font-semibold">Pay with ETH (ERC20)</p>
               <p className="text-[#555566] text-xs">Send exact amount to the address below</p>
             </div>
           </div>

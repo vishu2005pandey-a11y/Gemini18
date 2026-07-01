@@ -53,15 +53,22 @@ async def cmd_start(message: Message, command: CommandObject):
     user = message.from_user
     lang = "en"
 
-    # Handle referral parameter: /start ref_<user_id>
+    # Handle parameters: /start ref_<user_id> or /start view_<product_id>
     referrer_id = None
-    if command.args and command.args.startswith("ref_"):
-        try:
-            referrer_id = int(command.args[4:])
-            if referrer_id == user.id:
-                referrer_id = None  # can't refer yourself
-        except ValueError:
-            pass
+    view_prod_id = None
+    if command.args:
+        if command.args.startswith("ref_"):
+            try:
+                referrer_id = int(command.args[4:])
+                if referrer_id == user.id:
+                    referrer_id = None
+            except ValueError:
+                pass
+        elif command.args.startswith("view_"):
+            try:
+                view_prod_id = int(command.args[5:])
+            except ValueError:
+                pass
 
     # Register/update user
     is_new = await db.upsert_user(user.id, user.username, user.first_name or "", referrer_id)
@@ -77,7 +84,13 @@ async def cmd_start(message: Message, command: CommandObject):
 
     # Show language selection on /start
     text = "Please select your language: / Por favor, selecciona tu idioma:"
-    await message.answer(text, reply_markup=start_language_kb(lang), parse_mode="HTML")
+    
+    if view_prod_id:
+        # We need to save language preference first, defaults to English if new
+        from handlers.shop import send_product_card
+        await send_product_card(message, lang, view_prod_id)
+    else:
+        await message.answer(text, reply_markup=start_language_kb(lang), parse_mode="HTML")
 
 @router.callback_query(F.data.startswith("start_lang:"))
 async def cb_start_lang(callback: CallbackQuery):

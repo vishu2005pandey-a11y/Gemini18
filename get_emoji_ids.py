@@ -3,7 +3,7 @@ Send a message with premium emojis to your log group,
 then run this script to get the entity IDs.
 
 Usage:
-  .\venv\Scripts\python get_emoji_ids.py
+  .\\venv\\Scripts\\python get_emoji_ids.py
 """
 import asyncio
 from dotenv import load_dotenv

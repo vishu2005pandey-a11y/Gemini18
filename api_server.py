@@ -152,9 +152,10 @@ async def create_order_handler(request: web.Request) -> web.Response:
     except Exception:
         return web.json_response({"error": "invalid json"}, status=400)
 
-    user_id    = body.get("user_id")
-    qty        = body.get("qty", 1)
-    network_key = body.get("network", "USDT_BSC")  # USDT_BSC or USDT_ETH
+    user_id     = body.get("user_id")
+    qty         = body.get("qty", 1)
+    network_key = body.get("network", "USDT_BSC")
+    prod_id     = body.get("product_id", 1)
 
     if not user_id:
         return web.json_response({"error": "missing user_id"}, status=400)
@@ -168,11 +169,16 @@ async def create_order_handler(request: web.Request) -> web.Response:
         return web.json_response({"error": "invalid parameters"}, status=400)
 
     # Check stock
-    stock = await db.get_stock_count()
+    stock_map = await db.get_stock_map()
+    stock = stock_map.get(prod_id, 0)
     if stock < qty:
         return web.json_response({"error": "insufficient_stock", "available": stock}, status=409)
 
-    price  = await db.get_price()
+    product = await db.get_product(prod_id)
+    if not product:
+        return web.json_response({"error": "product_not_found"}, status=404)
+        
+    price  = product["price"]
     amount = round(price * qty, 2)
     usdt_amount = payments.usd_to_usdt(amount)
 
@@ -195,6 +201,7 @@ async def create_order_handler(request: web.Request) -> web.Response:
         address=wallet,
         crypto_amount=float(usdt_amount),
         currency=network_key,
+        product_id=prod_id,
     )
 
     return web.json_response({
@@ -244,12 +251,21 @@ async def check_payment_handler(request: web.Request) -> web.Response:
     )
 
     if confirmed:
-        links = await db.pop_links(order["quantity"])
+        prod_id = order.get("product_id", 1)
+        links = await db.pop_links(order["quantity"], prod_id)
         if not links:
             return web.json_response({"status": "paid", "links": []})
         await db.mark_order_paid(order_id, links)
         reward = await db.get_referral_reward()
         await db.reward_referral(order["user_id"], reward)
+        
+        import broadcaster
+        user = await db.get_user(order["user_id"])
+        username = user["username"] if user and user["username"] else str(order["user_id"])
+        product = await db.get_product(prod_id)
+        if product:
+            await broadcaster.broadcast_purchase(username, order["quantity"], product["name"], prod_id)
+            
         return web.json_response({"status": "paid", "links": links, "tx_hash": tx_hash})
 
     return web.json_response({"status": "pending", "links": []})
@@ -273,6 +289,13 @@ async def cancel_order_handler(request: web.Request) -> web.Response:
         return web.json_response({"error": "cannot_cancel", "status": order["status"]}, status=400)
 
     await db.mark_order_cancelled(order_id)
+    
+    import broadcaster
+    user = await db.get_user(order["user_id"])
+    username = user["username"] if user and user["username"] else str(order["user_id"])
+    product = await db.get_product(order.get("product_id", 1))
+    await broadcaster.broadcast_cancel(username, order_id, product["name"] if product else "")
+    
     return web.json_response({"ok": True})
 
 

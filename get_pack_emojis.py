@@ -1,6 +1,6 @@
 """
 Get ALL emoji IDs from a custom emoji pack.
-Usage: .\venv\Scripts\python get_pack_emojis.py
+Usage: .\\venv\\Scripts\\python get_pack_emojis.py
 """
 import asyncio
 from dotenv import load_dotenv

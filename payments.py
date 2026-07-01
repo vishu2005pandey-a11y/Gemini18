@@ -1,8 +1,13 @@
 """
 Alpha Bot — Crypto Payment Gateway
 Supports:
-  - USDT BEP20 (BSC)   verified via BSCScan API
-  - USDT ERC20 (ETH)   verified via Etherscan API
+  - USDT ERC20 (ETH)      verified via Etherscan API
+  - USDT BEP20 (BSC)      manual confirm
+  - USDT TRC20 (Tron)     manual confirm
+  - USDC BEP20 / ERC20    manual confirm
+  - Binance Pay (UID)      manual confirm
+  - Bybit Transfer (UID)   manual confirm
+  - Balance                internal
 
 No middleman. Zero fees. Direct on-chain verification.
 """
@@ -12,31 +17,23 @@ import logging
 import aiohttp
 from decimal import Decimal, ROUND_UP
 from config import (
-    WALLET_ADDRESS_BSC, WALLET_ADDRESS_ETH,
-    BSCSCAN_API_KEY, ETHERSCAN_API_KEY,
+    WALLET_ADDRESS_ETH,
+    WALLET_ADDRESS_BSC,
+    WALLET_ADDRESS_TRC20,
+    BINANCE_PAY_UID,
+    BYBIT_UID,
+    ETHERSCAN_API_KEY,
 )
 
 log = logging.getLogger(__name__)
 
 # ── USDT contract addresses ───────────────────────────────────────────────────
-USDT_BSC_CONTRACT  = "0x55d398326f99059fF775485246999027B3197955"  # BSC USDT
 USDT_ETH_CONTRACT  = "0xdAC17F958D2ee523a2206206994597C13D831ec7"  # ETH USDT
 
 # ── Networks ──────────────────────────────────────────────────────────────────
 NETWORKS = {
-    "USDT_BSC": {
-        "label":    "USDT (BEP20 / BSC)",
-        "symbol":   "USDT",
-        "network":  "BSC",
-        "address":  WALLET_ADDRESS_BSC,
-        "contract": USDT_BSC_CONTRACT,
-        "api_url":  "https://api.bscscan.com/api",
-        "api_key":  BSCSCAN_API_KEY,
-        "decimals": 18,
-        "explorer": "https://bscscan.com/tx/",
-    },
     "USDT_ETH": {
-        "label":    "USDT (ERC20 / ETH)",
+        "label":    "USDT ERC20 (ETH)",
         "symbol":   "USDT",
         "network":  "ETH",
         "address":  WALLET_ADDRESS_ETH,
@@ -45,6 +42,55 @@ NETWORKS = {
         "api_key":  ETHERSCAN_API_KEY,
         "decimals": 6,
         "explorer": "https://etherscan.io/tx/",
+    },
+    "BINANCE_PAY": {
+        "label":    "Binance Pay",
+        "symbol":   "USDT",
+        "network":  "BINANCE",
+        "address":  f"Binance Pay ID: {BINANCE_PAY_UID}" if BINANCE_PAY_UID else "",
+        "explorer": "",
+    },
+    "BYBIT_PAY": {
+        "label":    "Bybit Transfer (UID)",
+        "symbol":   "USDT",
+        "network":  "BYBIT",
+        "address":  f"Bybit UID: {BYBIT_UID}" if BYBIT_UID else "",
+        "explorer": "",
+    },
+    "USDT_BSC": {
+        "label":    "USDT BEP20 (BSC)",
+        "symbol":   "USDT",
+        "network":  "BSC",
+        "address":  WALLET_ADDRESS_BSC or WALLET_ADDRESS_ETH,
+        "explorer": "https://bscscan.com/tx/",
+    },
+    "USDT_TRC20": {
+        "label":    "USDT TRC20 (Tron)",
+        "symbol":   "USDT",
+        "network":  "TRX",
+        "address":  WALLET_ADDRESS_TRC20,
+        "explorer": "https://tronscan.org/#/transaction/",
+    },
+    "USDC_BSC": {
+        "label":    "USDC (BEP20)",
+        "symbol":   "USDC",
+        "network":  "BSC",
+        "address":  WALLET_ADDRESS_BSC or WALLET_ADDRESS_ETH,
+        "explorer": "https://bscscan.com/tx/",
+    },
+    "USDC_ETH": {
+        "label":    "USDC (ERC20)",
+        "symbol":   "USDC",
+        "network":  "ETH",
+        "address":  WALLET_ADDRESS_ETH,
+        "explorer": "https://etherscan.io/tx/",
+    },
+    "BALANCE": {
+        "label":    "Pay from Balance",
+        "symbol":   "USD",
+        "network":  "INTERNAL",
+        "address":  "Internal Wallet",
+        "explorer": "",
     },
 }
 
