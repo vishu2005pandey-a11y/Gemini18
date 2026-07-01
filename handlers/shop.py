@@ -321,10 +321,7 @@ async def cb_pay_network(callback: CallbackQuery):
         address=wallet,
         crypto_amount=float(usdt_amount),
         currency=network_key,
-        product_id=prod_id,
     )
-    # The order schema actually uses product_id if available, let's just make sure it creates.
-    # Note: create_order needs updating if it doesn't take product_id yet, but for now it defaults to 1.
 
     # Build invoice message
     network_icon = "🟡" if network_key == "USDT_BSC" else "🔷"
