@@ -48,7 +48,7 @@ async def _get_buttons(bot: Bot, product_name: str, mini_app_url: str, chat_id: 
 
     if bot_username:
         builder.row(InlineKeyboardButton(
-            text=f"{GEMINI_EMOJI}  Buy {product_name}",
+            text=f"🤖  Buy {product_name}",
             url=f"https://t.me/{bot_username}"
         ))
 
