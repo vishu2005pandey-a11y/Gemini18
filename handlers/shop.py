@@ -539,20 +539,11 @@ async def _broadcast_purchase(bot, username: str, qty: int, product_name: str, p
 
 @router.callback_query(F.data.startswith("cancel_pay:"))
 async def cb_cancel_pay(callback: CallbackQuery):
-    user_id = callback.fromuser.id if hasattr(callback, 'fromuser') else callback.from_user.id
+    user_id = callback.from_user.id
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
     order_id = callback.data.split(":", 1)[1]
-    
-    order = await db.get_order(order_id)
-    if order:
-        product = await db.get_product(dict(order).get("product_id", 1))
-        product_name = product["name"] if product else ""
-        username = callback.from_user.username or str(user_id)
-        import broadcaster
-        await broadcaster.broadcast_cancel(username, order_id, product_name)
-
     await db.mark_order_cancelled(order_id)
     await callback.message.edit_text(
         t(lang, "payment_cancelled"),

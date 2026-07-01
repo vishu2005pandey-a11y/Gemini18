@@ -62,6 +62,10 @@ NETWORKS = {
         "symbol":   "USDT",
         "network":  "BSC",
         "address":  WALLET_ADDRESS_BSC or WALLET_ADDRESS_ETH,
+        "contract": "0x55d398326f99059fF775485246999027B3197955",
+        "api_url":  "https://api.bscscan.com/api",
+        "api_key":  BSCSCAN_API_KEY if hasattr(__import__('config'), 'BSCSCAN_API_KEY') else "",
+        "decimals": 18,
         "explorer": "https://bscscan.com/tx/",
     },
     "USDT_TRC20": {
@@ -154,9 +158,17 @@ async def verify_payment(
 
     Returns (confirmed: bool, tx_hash: str | None)
     """
-    net        = get_network(network_key)
-    decimals   = net["decimals"]
-    expected_raw = int(Decimal(expected_amount_usdt) * (10 ** decimals))
+    # Normalize legacy network keys
+    if network_key not in NETWORKS:
+        network_key = "USDT_BSC"  # default fallback
+
+    net      = get_network(network_key)
+    decimals = net.get("decimals", 18)
+
+    try:
+        expected_raw = int(Decimal(expected_amount_usdt) * (10 ** decimals))
+    except Exception:
+        return False, None
 
     txs = await get_token_transactions(network_key, wallet)
     for tx in txs:
