@@ -104,10 +104,23 @@ async def broadcast_stock_update(stock: int):
 
 
 async def broadcast_fake_purchase(qty: int, product_name: str, product_id: int = 0):
-    """Broadcast a fake/simulated purchase to group (for social proof)."""
-    await broadcast_purchase(
-        username="someone",
-        qty=qty,
-        product_name=product_name,
-        product_id=product_id
+    """Broadcast a fake/simulated purchase to GROUP ONLY (not channel)."""
+    if not BOT_TOKEN or not GROUP_ID:
+        return
+
+    bot = Bot(token=BOT_TOKEN)
+    mini_app_url = os.getenv("MINI_APP_URL", "")
+
+    text = (
+        f"{E_CART} <b>Someone just bought {qty}×</b> 🤖 {product_name}!\n"
+        f"<i>Be the next — tap below!</i>"
     )
+
+    builder = await _get_buttons(bot, product_name, mini_app_url)
+
+    try:
+        await bot.send_message(GROUP_ID, text, reply_markup=builder.as_markup(), parse_mode="HTML")
+    except Exception as e:
+        log.warning("Fake broadcast failed to group: %s", e)
+    finally:
+        await bot.session.close()
