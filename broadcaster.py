@@ -101,3 +101,13 @@ async def broadcast_stock_update(stock: int):
                     log.warning("Stock broadcast failed to %s: %s", chat_id, e)
     finally:
         await bot.session.close()
+
+
+async def broadcast_fake_purchase(qty: int, product_name: str, product_id: int = 0):
+    """Broadcast a fake/simulated purchase to group (for social proof)."""
+    await broadcast_purchase(
+        username="someone",
+        qty=qty,
+        product_name=product_name,
+        product_id=product_id
+    )
