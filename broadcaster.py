@@ -17,6 +17,8 @@ from locales.en import E_CART, E_STAR
 
 log = logging.getLogger(__name__)
 
+GEMINI_EMOJI = '<tg-emoji emoji-id="5206660927339924387">🤖</tg-emoji>'
+
 
 async def _get_buttons(bot: Bot, product_name: str, mini_app_url: str, chat_id: int = 0) -> InlineKeyboardBuilder:
     """Build buttons — tries WebApp (green) first, falls back to URL."""
@@ -46,7 +48,7 @@ async def _get_buttons(bot: Bot, product_name: str, mini_app_url: str, chat_id: 
 
     if bot_username:
         builder.row(InlineKeyboardButton(
-            text=f"🤖  Buy {product_name}",
+            text=f"{GEMINI_EMOJI}  Buy {product_name}",
             url=f"https://t.me/{bot_username}"
         ))
 
@@ -93,7 +95,7 @@ async def broadcast_purchase(username: str, qty: int, product_name: str, product
     mini_app_url = os.getenv("MINI_APP_URL", "")
 
     text = (
-        f"{E_CART} <b>Someone just bought {qty}×</b> 🤖 {product_name}!\n"
+        f"{E_CART} <b>Someone just bought {qty}×</b> {GEMINI_EMOJI} {product_name}!\n"
         f"<i>Be the next — tap below!</i>"
     )
 
@@ -116,7 +118,7 @@ async def broadcast_fake_purchase(qty: int, product_name: str, product_id: int =
     mini_app_url = os.getenv("MINI_APP_URL", "")
 
     text = (
-        f"{E_CART} <b>Someone just bought {qty}×</b> 🤖 {product_name}!\n"
+        f"{E_CART} <b>Someone just bought {qty}×</b> {GEMINI_EMOJI} {product_name}!\n"
         f"<i>Be the next — tap below!</i>"
     )
 
