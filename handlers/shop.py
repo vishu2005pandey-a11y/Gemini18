@@ -42,8 +42,7 @@ async def cb_shop(callback: CallbackQuery):
     stock_map = {}
     for p in products:
         stock_map[p["id"]] = await db.get_stock_count(p["id"])
-    
-    text = f"{E_CART} <b>Catálogo de productos</b>\n\n{E_CHECK} Entrega automática al instante\n\n⬇️ Elige tu producto:"
+    text = t(lang, "shop_list_header")
     await callback.message.edit_text(
         text,
         reply_markup=shop_product_list_kb(lang, products, stock_map),

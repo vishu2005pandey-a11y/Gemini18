@@ -73,13 +73,13 @@ def shop_product_list_kb(lang: str, products: list, stock_map: dict) -> InlineKe
         stock = stock_map.get(pid, 0)
         btn_style = "success" if stock > 0 else "danger"
         status_icon = "🟢" if stock > 0 else "🔴"
-        status_text = f"{stock} disponibles" if stock > 0 else "Sin stock" # or english
+        status_text = t(lang, "status_in_stock", stock=stock) if stock > 0 else t(lang, "status_out_of_stock")
         
         btn_text = f"{p['name']} | ${p['price']:.2f} | {status_icon} {status_text}"
         builder.row(InlineKeyboardButton(text=btn_text, callback_data=f"view_prod:{pid}", style=btn_style))
         
-    builder.row(InlineKeyboardButton(text="🔄 Refresh Stock", callback_data="shop"))
-    builder.row(InlineKeyboardButton(text="◀️ Main Menu", callback_data="main_menu"))
+    builder.row(InlineKeyboardButton(text=t(lang, "btn_refresh_stock"), callback_data="shop"))
+    builder.row(InlineKeyboardButton(text=t(lang, "btn_main_menu"), callback_data="main_menu"))
     return builder.as_markup()
 
 def product_detail_kb(lang: str, product_id: int, price: float, in_stock: bool) -> InlineKeyboardMarkup:

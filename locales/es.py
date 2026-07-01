@@ -56,10 +56,17 @@ STRINGS = {
     # ── Shop ─────────────────────────────────────────────────────────────
     "shop_header": (
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"{E_CART} <b>ALPHA TIENDA</b>\n"
+        f"{E_CART} <b>ALPHA SHOP</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"{E_STAR} <b>Producto Destacado</b>\n\n"
     ),
+    "shop_list_header": (
+        f"{E_CART} <b>Catálogo de productos</b>\n\n"
+        f"{E_CHECK} Entrega automática al instante\n\n"
+        "⬇️ Elige tu producto:"
+    ),
+    "status_in_stock": "{stock} disponibles",
+    "status_out_of_stock": "Sin stock",
+    "btn_refresh_stock": "🔄 Actualizar Stock",
     "product_card": (
         "╔══════════════════════════╗\n"
         f"  {E_ROBOT} <b>{{name}}</b>\n"

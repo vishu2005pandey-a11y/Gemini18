@@ -102,8 +102,15 @@ STRINGS = {
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CART} <b>ALPHA SHOP</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"{E_STAR} <b>Featured Product</b>\n\n"
     ),
+    "shop_list_header": (
+        f"{E_CART} <b>Product Catalog</b>\n\n"
+        f"{E_CHECK} Instant automatic delivery\n\n"
+        "⬇️ Choose your product:"
+    ),
+    "status_in_stock": "{stock} available",
+    "status_out_of_stock": "Out of stock",
+    "btn_refresh_stock": "🔄 Refresh Stock",
     "product_card": (
         "╔══════════════════════════╗\n"
         f"  {E_ROBOT} <b>{{name}}</b>\n"
