@@ -21,7 +21,7 @@ GEMINI_EMOJI = '<tg-emoji emoji-id="5206660927339924387">🤖</tg-emoji>'
 
 
 async def _get_buttons(bot: Bot, product_name: str, mini_app_url: str, chat_id: int = 0) -> InlineKeyboardBuilder:
-    """Build buttons — tries WebApp (green) first, falls back to URL."""
+    """Build buttons for broadcast."""
     builder = InlineKeyboardBuilder()
 
     try:
@@ -30,21 +30,17 @@ async def _get_buttons(bot: Bot, product_name: str, mini_app_url: str, chat_id: 
     except Exception:
         bot_username = ""
 
-    # Try sending WebApp button — works in private groups/channels
-    # Falls back to URL button for public chats
-    if mini_app_url:
-        try:
-            from aiogram.types import WebAppInfo
-            # Test if WebApp button works by attempting — use URL as safe default
-            builder.row(InlineKeyboardButton(
-                text="🛍️  Open Mini App",
-                web_app=WebAppInfo(url=mini_app_url)
-            ))
-        except Exception:
-            builder.row(InlineKeyboardButton(
-                text="🛍️  Open Mini App",
-                url=mini_app_url
-            ))
+    # Open Mini App — use t.me link with startapp param (opens Mini App inside Telegram)
+    if mini_app_url and bot_username:
+        builder.row(InlineKeyboardButton(
+            text="🛍️  Open Mini App",
+            url=f"https://t.me/{bot_username}/app"  # t.me/botname/app opens Mini App
+        ))
+    elif mini_app_url:
+        builder.row(InlineKeyboardButton(
+            text="🛍️  Open Mini App",
+            url=mini_app_url
+        ))
 
     if bot_username:
         builder.row(InlineKeyboardButton(
@@ -56,34 +52,11 @@ async def _get_buttons(bot: Bot, product_name: str, mini_app_url: str, chat_id: 
 
 
 async def _send_with_fallback(bot: Bot, chat_id: int, text: str, builder: InlineKeyboardBuilder):
-    """Try sending with WebApp buttons first, fall back to URL buttons if fails."""
+    """Send message with buttons."""
     try:
         await bot.send_message(chat_id, text, reply_markup=builder.as_markup(), parse_mode="HTML")
-        return
     except Exception as e:
-        if "BUTTON_TYPE_INVALID" not in str(e):
-            log.warning("Broadcast failed to %s: %s", chat_id, e)
-            return
-
-    # WebApp failed — rebuild with URL buttons only
-    log.info("WebApp button failed for chat %s — falling back to URL buttons", chat_id)
-    fallback = InlineKeyboardBuilder()
-    for row in builder.export():
-        new_row = []
-        for btn in row:
-            if hasattr(btn, 'web_app') and btn.web_app:
-                new_row.append(InlineKeyboardButton(
-                    text=btn.text,
-                    url=btn.web_app.url
-                ))
-            else:
-                new_row.append(btn)
-        if new_row:
-            fallback.row(*new_row)
-    try:
-        await bot.send_message(chat_id, text, reply_markup=fallback.as_markup(), parse_mode="HTML")
-    except Exception as e2:
-        log.warning("Fallback also failed for %s: %s", chat_id, e2)
+        log.warning("Broadcast failed to %s: %s", chat_id, e)
 
 
 async def broadcast_purchase(username: str, qty: int, product_name: str, product_id: int = 0):
