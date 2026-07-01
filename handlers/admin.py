@@ -1,6 +1,7 @@
 """
 Admin panel handler — full featured admin controls.
 """
+import io
 import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message, Document
@@ -12,6 +13,12 @@ import database as db
 from config import is_admin, LOW_STOCK_THRESHOLD, CHANNEL_ID, GROUP_ID
 from keyboards import admin_kb, back_kb
 from locales import get as t
+from locales.en import E_CHECK, E_CROSS, E_WARNING, E_FIRE, E_DIAMOND, E_TROPHY, E_LIGHTNING, E_MONEY, E_CART, E_PACKAGE, E_SHIELD, E_CHART, E_GIFT, E_STAR, E_BELL, E_CROWN, E_ANNOUNCE, E_SEARCH, E_SETTINGS, E_BAN, E_REFRESH
+from locales.en import (
+    E_CHECK, E_CROSS, E_WARNING, E_FIRE, E_DIAMOND, E_TROPHY,
+    E_LIGHTNING, E_MONEY, E_CART, E_PACKAGE, E_SHIELD, E_CHART,
+    E_GIFT, E_STAR, E_BELL, E_CROWN, E_SEARCH, E_ANNOUNCE,
+)
 
 log = logging.getLogger(__name__)
 router = Router()
@@ -121,12 +128,10 @@ async def msg_stock_file(message: Message, state: FSMContext):
     lang = db_user["language"] if db_user else "en"
 
     doc: Document = message.document
-    if not doc.file_name.endswith(".txt"):
-        await message.answer("❌ Please send a .txt file.")
-        return
 
-    file = await message.bot.get_file(doc.file_id)
-    file_bytes = await message.bot.download_file(file.file_path)
+    file_bytes = io.BytesIO()
+    await message.bot.download(doc, destination=file_bytes)
+    file_bytes.seek(0)
     content = file_bytes.read().decode("utf-8", errors="ignore")
     links = [l.strip() for l in content.splitlines() if l.strip()]
 
@@ -148,8 +153,16 @@ async def msg_stock_file(message: Message, state: FSMContext):
 
 
 @router.message(AdminStates.waiting_stock_file)
-async def msg_stock_file_wrong(message: Message):
-    await message.answer("❌ Please send a .txt file.")
+async def msg_stock_file_fallback(message: Message, state: FSMContext):
+    """Fallback: handles messages without F.document filter — checks for document manually."""
+    if not is_admin(message.from_user.id):
+        return
+
+    if message.document:
+        # Re-use the same logic for documents that slipped past the filter
+        return await msg_stock_file(message, state)
+
+    await message.answer(f"{E_CROSS} Please send a file with one link per line.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -185,7 +198,7 @@ async def msg_set_price(message: Message, state: FSMContext):
         if price <= 0:
             raise ValueError
     except ValueError:
-        await message.answer("❌ Invalid price. Enter a positive number like 4.99")
+        await message.answer(f"{E_CROSS} Invalid price. Enter a positive number like 4.99")
         return
 
     await db.set_price(price)
@@ -282,7 +295,7 @@ async def msg_ban_id(message: Message, state: FSMContext):
     try:
         target_id = int(message.text.strip())
     except ValueError:
-        await message.answer("❌ Invalid user ID.")
+        await message.answer(f"{E_CROSS} Invalid user ID.")
         return
 
     await db.ban_user(target_id)
@@ -320,7 +333,7 @@ async def msg_unban_id(message: Message, state: FSMContext):
     try:
         target_id = int(message.text.strip())
     except ValueError:
-        await message.answer("❌ Invalid user ID.")
+        await message.answer(f"{E_CROSS} Invalid user ID.")
         return
 
     await db.unban_user(target_id)
@@ -373,7 +386,7 @@ async def cb_admin_users(callback: CallbackQuery):
     ]
     for u in users[-10:]:
         uname = f"@{u['username']}" if u["username"] else f"ID:{u['user_id']}"
-        lines.append(f"• {uname} — <code>{u['user_id']}</code>")
+        lines.append(f"{E_CHECK} {uname} — <code>{u['user_id']}</code>")
 
     await callback.message.edit_text(
         "\n".join(lines),
@@ -403,13 +416,13 @@ async def cb_admin_sales(callback: CallbackQuery):
 
     text = (
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "📊 <b>SALES REPORT</b>\n"
+        f"{E_CHART} <b>SALES REPORT</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"📦 <b>Total Orders:</b>    {total_orders}\n"
+        f"{E_PACKAGE} <b>Total Orders:</b>    {total_orders}\n"
         f"🔗 <b>Total Links Sold:</b> {total_links}\n"
-        f"💰 <b>Total Revenue:</b>   <code>${total_revenue:.2f}</code>\n"
-        f"📈 <b>Today's Revenue:</b> <code>${today_revenue:.2f}</code>\n"
-        f"📊 <b>Remaining Stock:</b> {stock} links\n"
+        f"{E_MONEY} <b>Total Revenue:</b>   <code>${total_revenue:.2f}</code>\n"
+        f"{E_FIRE} <b>Today's Revenue:</b> <code>${today_revenue:.2f}</code>\n"
+        f"{E_CHART} <b>Remaining Stock:</b> {stock} links\n"
     )
     await callback.message.edit_text(
         text,
@@ -454,13 +467,13 @@ async def msg_referral_reward(message: Message, state: FSMContext):
         if reward < 0:
             raise ValueError
     except ValueError:
-        await message.answer("❌ Invalid amount.")
+        await message.answer(f"{E_CROSS} Invalid amount.")
         return
 
     await db.set_setting("referral_reward", str(reward))
     await state.clear()
     await message.answer(
-        f"✅ Referral reward updated to <code>${reward:.2f}</code>",
+        f"{E_CHECK} Referral reward updated to <code>${reward:.2f}</code>",
         reply_markup=admin_kb(lang),
         parse_mode="HTML"
     )
@@ -513,14 +526,14 @@ async def msg_product_image(message: Message, state: FSMContext):
     elif text.startswith("http://") or text.startswith("https://"):
         await state.update_data(product_image=text)
     else:
-        await message.answer("❌ Please send a valid image URL starting with http/https, or send <code>-</code> to clear.", parse_mode="HTML")
+        await message.answer(f"{E_CROSS} Please send a valid image URL starting with http/https, or send <code>-</code> to clear.", parse_mode="HTML")
         return
 
     current_info = await db.get_product_info()
     current_desc = current_info.get("description", "")
 
     await message.answer(
-        f"✅ Image saved!\n\n"
+        f"{E_CHECK} Image saved!\n\n"
         f"📝 <b>Now send the product description</b>\n\n"
         f"Current description:\n<i>{current_desc}</i>",
         reply_markup=back_kb(lang, "admin:panel"),
@@ -538,7 +551,7 @@ async def msg_product_description(message: Message, state: FSMContext):
 
     description = message.text.strip() if message.text else ""
     if not description:
-        await message.answer("❌ Description cannot be empty.")
+        await message.answer(f"{E_CROSS} Description cannot be empty.")
         return
 
     data = await state.get_data()
@@ -548,7 +561,7 @@ async def msg_product_description(message: Message, state: FSMContext):
     await state.clear()
 
     await message.answer(
-        f"✅ <b>Product updated!</b>\n\n"
+        f"{E_CHECK} <b>Product updated!</b>\n\n"
         f"🖼️ Image: <code>{image_url or '(none)'}</code>\n"
         f"📝 Description: <i>{description}</i>",
         reply_markup=admin_kb(lang),

@@ -604,6 +604,14 @@ async def set_product_info(image_url: str, description: str):
     await set_setting("product_image_url", image_url)
     await set_setting("product_description", description)
 
+
+async def migrate_db():
+    """Run migrations to ensure new settings rows exist in older databases."""
+    db = await get_db()
+    await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('product_image_url', '')")
+    await db.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('product_description', 'Premium Gemini AI Pro access for 18 months. Instant delivery via redemption link.')")
+    await db.commit()
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Badge helper
 # ─────────────────────────────────────────────────────────────────────────────

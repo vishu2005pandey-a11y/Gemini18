@@ -12,6 +12,11 @@ import payments as pay
 from config import PAYMENT_TIMEOUT_MINUTES, PRODUCT_NAME, ADMIN_IDS, ADMIN_LOG_GROUP_ID
 from keyboards import shop_kb, terms_kb, payment_kb, after_purchase_kb, back_kb
 from locales import get as t
+from locales.en import (
+    E_CHECK, E_CROSS, E_WARNING, E_FIRE, E_DIAMOND, E_TROPHY,
+    E_LIGHTNING, E_MONEY, E_CART, E_PACKAGE, E_SHIELD, E_CHART,
+    E_GIFT, E_STAR, E_BELL, E_CROWN, E_SEARCH, E_ANNOUNCE,
+)
 from datetime import datetime
 
 log = logging.getLogger(__name__)
@@ -226,7 +231,7 @@ async def cb_check_pay(callback: CallbackQuery):
         return
 
     if order["status"] == "paid":
-        await callback.answer("✅ Already delivered!", show_alert=True)
+        await callback.answer(f"{E_CHECK} Already delivered!", show_alert=True)
         return
 
     if order["status"] in ("expired", "cancelled"):
@@ -260,7 +265,7 @@ async def _deliver_order(callback: CallbackQuery, order, lang: str):
     # Pop links atomically
     links = await db.pop_links(qty)
     if not links:
-        await callback.answer("❌ Out of stock! Contact support.", show_alert=True)
+        await callback.answer(f"{E_CROSS} Out of stock! Contact support.", show_alert=True)
         return
 
     # Mark order paid
@@ -278,7 +283,7 @@ async def _deliver_order(callback: CallbackQuery, order, lang: str):
         reply_markup=after_purchase_kb(lang, order_id),
         parse_mode="HTML"
     )
-    await callback.answer("✅ Payment confirmed!")
+    await callback.answer(f"{E_CHECK} Payment confirmed!")
 
     # Post-purchase processing
     user = await db.get_user(user_id)
@@ -316,8 +321,9 @@ async def _deliver_order(callback: CallbackQuery, order, lang: str):
         try:
             await callback.bot.send_message(
                 referrer_id,
-                f"🎁 <b>Referral Reward!</b>\n\nYour friend @{username} just made their first purchase.\n"
-                f"You earned <code>${reward:.2f}</code>! 💰",
+                f"{E_GIFT} <b>Referral Reward!</b>\n\n"
+                f"Your friend @{username} just made their first purchase.\n"
+                f"You earned <code>${reward:.2f}</code>! {E_MONEY}",
                 parse_mode="HTML"
             )
         except Exception:
@@ -339,12 +345,12 @@ async def _send_purchase_log(bot, user_id: int, username: str, order_id: str,
     now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     text = (
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "🛒 <b>NEW PURCHASE</b>\n"
+        f"{E_CART} <b>NEW PURCHASE</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"👤 <b>User:</b>     @{username} (<code>{user_id}</code>)\n"
         f"🆔 <b>Order ID:</b>  <code>{order_id}</code>\n"
         f"🔢 <b>Quantity:</b>  {qty}× link(s)\n"
-        f"💰 <b>Amount:</b>    <code>${amount:.2f}</code>\n"
+        f"{E_MONEY} <b>Amount:</b>    <code>${amount:.2f}</code>\n"
         f"💱 <b>Method:</b>    {method}\n"
         f"📅 <b>Date:</b>      {now}\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -361,7 +367,7 @@ async def _broadcast_purchase(bot, username: str, qty: int):
     mini_app_url = os.getenv("MINI_APP_URL", "")
 
     text = (
-        f"🛒 Someone just bought <b>{qty}×</b> 🤖 {PRODUCT_NAME}!\n"
+        f"{E_CART} Someone just bought <b>{qty}×</b> {E_STAR} {PRODUCT_NAME}!\n"
         f"<i>Be the next — tap below!</i>"
     )
 

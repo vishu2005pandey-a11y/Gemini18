@@ -40,6 +40,7 @@ async def main():
 
     # ── Init DB ───────────────────────────────────────────────────────────────
     await db.get_db()
+    await db.migrate_db()
     log.info("Database ready.")
 
     # ── Bot + Dispatcher ──────────────────────────────────────────────────────

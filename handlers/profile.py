@@ -15,6 +15,7 @@ from keyboards import (
     profile_kb, orders_kb, notifications_kb, language_kb, back_kb
 )
 from locales import get as t
+from locales.en import E_CHECK, E_CROSS, E_WARNING, E_DIAMOND, E_TROPHY, E_PACKAGE, E_CHART, E_MONEY, E_GIFT, E_BELL, E_MEDAL, E_SEARCH
 
 log = logging.getLogger(__name__)
 router = Router()
@@ -160,13 +161,13 @@ async def msg_search_order_id(message: Message, state: FSMContext):
 
     text = (
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🔍 <b>ORDER DETAILS</b>\n"
+        f"{E_SEARCH} <b>ORDER DETAILS</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"🆔 <b>Order ID:</b>  <code>{order_id}</code>\n"
-        f"📦 <b>Quantity:</b>  {order['quantity']}× links\n"
-        f"💰 <b>Amount:</b>    <code>${order['amount_usd']:.2f}</code>\n"
+        f"{E_PACKAGE} <b>Quantity:</b>  {order['quantity']}× links\n"
+        f"{E_MONEY} <b>Amount:</b>    <code>${order['amount_usd']:.2f}</code>\n"
         f"📅 <b>Date:</b>      {paid_at}\n"
-        f"✅ <b>Status:</b>    {order['status'].capitalize()}\n\n"
+        f"{E_CHECK} <b>Status:</b>    {order['status'].capitalize()}\n\n"
         f"🔗 <b>Links:</b>\n{links_text}"
     )
     await message.answer(text, reply_markup=back_kb(lang, "orders"), parse_mode="HTML")
