@@ -156,11 +156,11 @@ export default function HomeTab({ userId, products, referralReward = 0.50, onBuy
             )}
           </div>
         ) : (
-          /* Loading skeleton */
-          <div className="grid grid-cols-2 gap-3">
-            {[0, 1].map(i => (
-              <div key={i} className="card p-3 h-48 shimmer rounded-2xl" />
-            ))}
+          /* Empty state */
+          <div className="card p-8 flex flex-col items-center gap-2 text-center mt-4">
+            <span className="text-3xl">📦</span>
+            <p className="text-white font-semibold">No products yet</p>
+            <p className="text-[#555566] text-sm">Products will appear here once added.</p>
           </div>
         )}
       </div>
