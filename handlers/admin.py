@@ -513,9 +513,14 @@ async def cb_edit_product(callback: CallbackQuery, state: FSMContext):
     current_desc = current_info.get("description", "")
 
     await callback.message.edit_text(
-        f"🖼️ <b>Edit Product Image</b>\n\n"
-        f"Current image URL:\n<code>{current_image or '(none)'}</code>\n\n"
-        f"Send a new image URL (or send <code>-</code> to clear it):",
+        f"🖼️ <b>Edit Product</b>\n\n"
+        f"<b>Step 1 of 2 — Image</b>\n\n"
+        f"Current: <code>{current_image or '(none)'}</code>\n\n"
+        f"Options:\n"
+        f"• Send a <b>photo</b> directly\n"
+        f"• Send an <b>image URL</b> (https://...)\n"
+        f"• Send <code>-</code> to remove image\n"
+        f"• Send <code>skip</code> to keep current",
         reply_markup=back_kb(lang, "admin:panel"),
         parse_mode="HTML"
     )
@@ -540,10 +545,17 @@ async def msg_product_image(message: Message, state: FSMContext):
         await state.update_data(product_image=image_url)
     elif text == "-":
         await state.update_data(product_image="")
+    elif text.lower() == "skip":
+        current_info2 = await db.get_product_info()
+        await state.update_data(product_image=current_info2.get("image_url", ""))
     elif text.startswith("http://") or text.startswith("https://"):
         await state.update_data(product_image=text)
     else:
-        await message.answer(f"{E_CROSS} Please send a valid image URL starting with http/https, or send <code>-</code> to clear.", parse_mode="HTML")
+        await message.answer(
+            f"{E_WARNING} Please send a photo, image URL, "
+            f"<code>-</code> to remove, or <code>skip</code> to keep current.",
+            parse_mode="HTML"
+        )
         return
 
     current_info = await db.get_product_info()
@@ -578,10 +590,56 @@ async def msg_product_description(message: Message, state: FSMContext):
     await state.clear()
 
     await message.answer(
-        f"{E_CHECK} <b>Product updated!</b>\n\n"
-        f"🖼️ Image: <code>{image_url or '(none)'}</code>\n"
-        f"📝 Description: <i>{description}</i>",
+        f"{E_CHECK} <b>Product Uploaded Successfully!</b>\n\n"
+        f"🖼️ <b>Image:</b> <code>{image_url or '(none)'}</code>\n"
+        f"📝 <b>Description:</b> <i>{description}</i>\n\n"
+        f"<i>Mini App will show the updated product instantly.</i>",
         reply_markup=admin_kb(lang),
         parse_mode="HTML"
     )
     log.info("Admin %s updated product info", message.from_user.id)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Delete Product
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "admin:delete_product")
+async def cb_delete_product(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Admin only.", show_alert=True)
+        return
+    db_user = await db.get_user(callback.from_user.id)
+    lang = db_user["language"] if db_user else "en"
+
+    from aiogram.types import InlineKeyboardButton
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="✅ Yes, Delete", callback_data="admin:delete_product_confirm"),
+        InlineKeyboardButton(text="❌ Cancel", callback_data="admin:panel"),
+    )
+
+    await callback.message.edit_text(
+        f"{E_WARNING} <b>Delete Product?</b>\n\n"
+        "This will clear the product image and description from the Mini App.\n\n"
+        "<i>Stock links will NOT be deleted.</i>",
+        reply_markup=builder.as_markup(),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "admin:delete_product_confirm")
+async def cb_delete_product_confirm(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Admin only.", show_alert=True)
+        return
+    db_user = await db.get_user(callback.from_user.id)
+    lang = db_user["language"] if db_user else "en"
+
+    # Clear product info
+    await db.set_product_info(image_url="", description="")
+    await callback.answer(f"🗑️ Product cleared!", show_alert=True)
+    await _send_admin_panel(callback, lang)
+    log.info("Admin %s deleted product info", callback.from_user.id)
