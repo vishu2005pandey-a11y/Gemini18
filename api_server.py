@@ -336,6 +336,18 @@ async def init_app() -> web.Application:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     log.info("Starting API server on http://0.0.0.0:8080")
-    loop = asyncio.get_event_loop()
-    app = loop.run_until_complete(init_app())
-    web.run_app(app, host="0.0.0.0", port=8080)
+
+    async def _main():
+        app = await init_app()
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "0.0.0.0", 8080)
+        await site.start()
+        log.info("API server running on http://0.0.0.0:8080")
+        # Run forever
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await runner.cleanup()
+
+    asyncio.run(_main())
