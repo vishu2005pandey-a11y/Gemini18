@@ -20,7 +20,7 @@ function OrderCard({ order }: { order: Order }) {
             🤖
           </div>
           <div>
-            <p className="text-white font-semibold text-sm">Order #{o.order_id.slice(-6)}</p>
+            <p className="text-white font-semibold text-sm">Order #{order.order_id.slice(-6)}</p>
             <p className="text-[#555566] text-xs">{order.quantity}× link{order.quantity !== 1 ? "s" : ""}</p>
           </div>
         </div>
