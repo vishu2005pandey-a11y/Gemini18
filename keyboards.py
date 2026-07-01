@@ -15,11 +15,11 @@ from config import CHANNEL_LINK, GROUP_LINK
 def force_join_kb(lang: str = "en") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text=t(lang, "btn_join_channel"), url=CHANNEL_LINK),
-        InlineKeyboardButton(text=t(lang, "btn_join_group"), url=GROUP_LINK),
+        InlineKeyboardButton(text=t(lang, "btn_join_channel"), url=CHANNEL_LINK, style="primary"),
+        InlineKeyboardButton(text=t(lang, "btn_join_group"), url=GROUP_LINK, style="primary"),
     )
     builder.row(
-        InlineKeyboardButton(text=t(lang, "btn_i_joined"), callback_data="check_join")
+        InlineKeyboardButton(text=t(lang, "btn_i_joined"), callback_data="check_join", style="success")
     )
     return builder.as_markup()
 
@@ -36,8 +36,9 @@ def main_menu_kb(lang: str = "en", mini_app_url: str = "") -> InlineKeyboardMark
     if mini_app_url:
         builder.row(
             InlineKeyboardButton(
-                text="🛍️  Open Mini App",
-                web_app=WebAppInfo(url=mini_app_url)
+                text="📱  Open Mini App",
+                web_app=WebAppInfo(url=mini_app_url),
+                style="primary"
             )
         )
 
@@ -47,13 +48,14 @@ def main_menu_kb(lang: str = "en", mini_app_url: str = "") -> InlineKeyboardMark
         builder.row(
             InlineKeyboardButton(
                 text=t(lang, "btn_shop"),
-                web_app=WebAppInfo(url=mini_app_url)
+                web_app=WebAppInfo(url=mini_app_url),
+                style="success"
             )
         )
     else:
         # No mini app — normal callback (blue)
         builder.row(
-            InlineKeyboardButton(text=t(lang, "btn_shop"), callback_data="shop")
+            InlineKeyboardButton(text=t(lang, "btn_shop"), callback_data="shop", style="success")
         )
 
     builder.row(
