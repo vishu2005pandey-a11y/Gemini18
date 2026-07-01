@@ -203,43 +203,57 @@ async def cb_agree(callback: CallbackQuery):
     lang = db_user["language"] if db_user else "en"
 
     parts = callback.data.split(":")
-    if len(parts) == 3:
-        prod_id = int(parts[1])
-        qty = int(parts[2])
-    else:
-        prod_id = 1
-        qty = int(parts[1])
+    qty = int(parts[-1])
 
-    product = await db.get_product(prod_id)
-    if not product:
-        await callback.answer("Product not found", show_alert=True)
-        return
-        
-    price = product["price"]
+    price = await db.get_price()
     total = round(price * qty, 2)
     usdt_amount = pay.usd_to_usdt(total)
 
-    # Show network selection
+    # Premium animated emojis for networks (message text only)
+    TRON_E    = '<tg-emoji emoji-id="5413589900450625318">🔴</tg-emoji>'
+    TRX_E     = '<tg-emoji emoji-id="5391239186994967770">🔥</tg-emoji>'
+    BNB_E     = '<tg-emoji emoji-id="5388622778817589921">🟡</tg-emoji>'
+    BNB_E2    = '<tg-emoji emoji-id="5397895634684490738">💛</tg-emoji>'
+    ETH_E     = E_DIAMOND
+    GEMINI_E  = '<tg-emoji emoji-id="5206660927339924387">🤖</tg-emoji>'
+
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text=f"🔶 Binance Pay — ${total:.2f}", callback_data=f"pay_network:BINANCE_PAY:{prod_id}:{qty}"))
-    builder.row(InlineKeyboardButton(text=f"⬛ Bybit Transfer (UID) — ${total:.2f}", callback_data=f"pay_network:BYBIT_PAY:{prod_id}:{qty}"))
-    builder.row(InlineKeyboardButton(text=f"🟢 USDT BEP20 — ${total:.2f}", callback_data=f"pay_network:USDT_BSC:{prod_id}:{qty}"))
-    builder.row(InlineKeyboardButton(text=f"🟢 USDT TRC20 — ${total:.2f}", callback_data=f"pay_network:USDT_TRC20:{prod_id}:{qty}"))
-    builder.row(InlineKeyboardButton(text=f"💵 USDC (BEP20) — ${total:.2f}", callback_data=f"pay_network:USDC_BSC:{prod_id}:{qty}"))
-    builder.row(InlineKeyboardButton(text=f"💵 USDC (ERC20) — ${total:.2f}", callback_data=f"pay_network:USDC_ETH:{prod_id}:{qty}"))
-    builder.row(InlineKeyboardButton(text=f"💰 Pay from Balance", callback_data=f"pay_network:BALANCE:{prod_id}:{qty}"))
-    builder.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data=f"view_prod:{prod_id}"))
+    builder.row(InlineKeyboardButton(
+        text=f"🟡 Binance Pay — ${total:.2f}",
+        callback_data=f"pay_network:BINANCE_PAY:{qty}"
+    ))
+    builder.row(InlineKeyboardButton(
+        text=f"🔶 USDT BEP20 (BSC) — ${total:.2f}",
+        callback_data=f"pay_network:USDT_BSC:{qty}"
+    ))
+    builder.row(InlineKeyboardButton(
+        text=f"🔴 USDT TRC20 (Tron) — ${total:.2f}",
+        callback_data=f"pay_network:USDT_TRC20:{qty}"
+    ))
+    builder.row(InlineKeyboardButton(
+        text=f"🔷 USDT ERC20 (ETH) — ${total:.2f}",
+        callback_data=f"pay_network:USDT_ETH:{qty}"
+    ))
+    builder.row(InlineKeyboardButton(
+        text=t(lang, "btn_back"), callback_data="shop"
+    ))
 
     text = (
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CART} <b>SELECT PAYMENT NETWORK</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"{E_PACKAGE} <b>Product:</b> {product['name']}\n"
-        f"🔢 <b>Quantity:</b> {qty}× link(s)\n"
+        f"{E_PACKAGE} <b>Product:</b> {PRODUCT_NAME}\n"
+        f"🔢 <b>Quantity:</b> {qty}× code(s)\n"
         f"{E_MONEY} <b>Total:</b>  <code>{usdt_amount} USDT</code>\n\n"
-        f"Choose your payment network 👇"
+        f"Choose network 👇\n\n"
+        f"{BNB_E} Binance Pay  •  {TRX_E} Tron TRC20  •  {ETH_E} ETH ERC20\n"
+        f"{BNB_E2} BSC BEP20"
     )
-    await callback.message.edit_text(text, reply_markup=builder.as_markup(), parse_mode="HTML")
+
+    try:
+        await callback.message.edit_text(text, reply_markup=builder.as_markup(), parse_mode="HTML")
+    except Exception:
+        pass  # message not modified — ignore
     await callback.answer()
 
 
@@ -255,19 +269,9 @@ async def cb_pay_network(callback: CallbackQuery):
 
     parts = callback.data.split(":")
     network_key = parts[1]
-    if len(parts) == 4:
-        prod_id = int(parts[2])
-        qty = int(parts[3])
-    else:
-        prod_id = 1
-        qty = int(parts[2])
+    qty = int(parts[-1])   # always last element
 
-    product = await db.get_product(prod_id)
-    if not product:
-        await callback.answer("Product not found", show_alert=True)
-        return
-        
-    price = product["price"]
+    price = await db.get_price()
     total = round(price * qty, 2)
     usdt_amount = pay.usd_to_usdt(total)
 
@@ -281,21 +285,22 @@ async def cb_pay_network(callback: CallbackQuery):
         return
 
     # Check stock
-    stock_map = await db.get_stock_map()
-    stock = stock_map.get(prod_id, 0)
-    
+    stock = await db.get_stock_count()
     if qty > stock:
-        await callback.message.edit_text(
-            t(lang, "insufficient_stock", stock=stock),
-            reply_markup=back_kb(lang, f"view_prod:{prod_id}"),
-            parse_mode="HTML"
-        )
+        try:
+            await callback.message.edit_text(
+                t(lang, "insufficient_stock", stock=stock),
+                reply_markup=back_kb(lang, "shop"),
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
         await callback.answer()
         return
 
     # Get network info
     net = pay.get_network(network_key)
-    wallet = net["address"]
+    wallet = net.get("address", "")
     order_id = pay.generate_order_id()
     created_ts = int(time.time())
 
@@ -312,7 +317,7 @@ async def cb_pay_network(callback: CallbackQuery):
         user_id=user_id,
         qty=qty,
         amount_usd=total,
-        payment_id=str(created_ts),   # store timestamp as payment_id
+        payment_id=str(created_ts),
         address=wallet,
         crypto_amount=float(usdt_amount),
         currency=network_key,
