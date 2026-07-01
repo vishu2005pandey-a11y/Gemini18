@@ -17,9 +17,27 @@ log = logging.getLogger(__name__)
 
 # ── Handlers ──────────────────────────────────────────────────────────────────
 
-async def product_handler(request: web.Request) -> web.Response:
-    data = await db.get_product_info()
-    return web.json_response(data)
+async def products_handler(request: web.Request) -> web.Response:
+    products = await db.get_products()
+    result = []
+    from config import LINKS_SOLD_COUNTER_BASE
+    sold_db = await db.get_total_links_sold()
+    sold = LINKS_SOLD_COUNTER_BASE + sold_db
+    avg_rating, review_count = await db.get_avg_rating()
+    for p in products:
+        stock = await db.get_stock_count(p["id"])
+        result.append({
+            "id": p["id"],
+            "name": p["name"],
+            "description": p["description"],
+            "price": p["price"],
+            "image_url": p["image_url"],
+            "stock": stock,
+            "sold": sold,
+            "rating": avg_rating if avg_rating else 4.8,
+            "reviews": review_count
+        })
+    return web.json_response(result)
 
 
 async def orders_handler(request: web.Request) -> web.Response:
@@ -135,6 +153,7 @@ async def create_order_handler(request: web.Request) -> web.Response:
         return web.json_response({"error": "invalid json"}, status=400)
 
     user_id = body.get("user_id")
+    product_id = body.get("product_id", 1)
     qty = body.get("qty", 1)
 
     if not user_id:
@@ -142,6 +161,7 @@ async def create_order_handler(request: web.Request) -> web.Response:
 
     try:
         uid = int(user_id)
+        product_id = int(product_id)
         qty = int(qty)
         if qty < 1:
             raise ValueError
@@ -149,11 +169,14 @@ async def create_order_handler(request: web.Request) -> web.Response:
         return web.json_response({"error": "invalid parameters"}, status=400)
 
     # Check stock
-    stock = await db.get_stock_count()
+    stock = await db.get_stock_count(product_id)
     if stock < qty:
         return web.json_response({"error": "insufficient_stock", "available": stock}, status=409)
 
-    price = await db.get_price()
+    product = await db.get_product(product_id)
+    if not product:
+        return web.json_response({"error": "invalid_product"}, status=404)
+    price = product["price"]
     amount = round(price * qty, 2)
     order_id = payments.generate_order_id()
 
@@ -177,6 +200,7 @@ async def create_order_handler(request: web.Request) -> web.Response:
     await db.create_order(
         order_id=order_id,
         user_id=uid,
+        product_id=product_id,
         qty=qty,
         amount_usd=amount,
         payment_id=payment_uuid,
@@ -231,7 +255,7 @@ async def check_payment_handler(request: web.Request) -> web.Response:
 
     if payments.is_payment_confirmed(payment_status):
         # Pop links and mark paid
-        links = await db.pop_links(order["quantity"])
+        links = await db.pop_links(order["product_id"], order["quantity"])
         if not links:
             log.error("Out of stock when fulfilling order %s", order_id)
             return web.json_response({"status": "paid", "links": []})
@@ -317,7 +341,7 @@ async def cors_middleware(request: web.Request, handler):
 async def init_app() -> web.Application:
     await db.get_db()
     app = web.Application(middlewares=[cors_middleware])
-    app.router.add_get("/product",       product_handler)
+    app.router.add_get("/products",      products_handler)
     app.router.add_get("/orders",        orders_handler)
     app.router.add_get("/wallet",        wallet_handler)
     app.router.add_get("/user",          user_handler)

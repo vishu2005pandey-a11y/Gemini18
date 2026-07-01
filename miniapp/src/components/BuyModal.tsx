@@ -6,7 +6,7 @@ import { createOrder, CreateOrderResult, Product } from "@/lib/api";
 import PaymentScreen from "./PaymentScreen";
 
 interface Props {
-  product: Pick<Product, "name" | "price" | "stock">;
+  product: Pick<Product, "id" | "name" | "price" | "stock">;
   userId: number | null;
   onClose: () => void;
   onSuccess: () => void;
@@ -39,7 +39,7 @@ export default function BuyModal({ product, userId, onClose, onSuccess }: Props)
     try {
       const twa = getTWA();
       const initData = twa?.initData || "";
-      const result = await createOrder(userId, qty, initData);
+      const result = await createOrder(userId, product.id, qty, initData);
       setOrder(result);
       setState("payment");
     } catch (err: unknown) {

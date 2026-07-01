@@ -10,7 +10,7 @@ import LeaderboardTab from "@/components/tabs/LeaderboardTab";
 import ReferralTab from "@/components/tabs/ReferralTab";
 import { getTWAUser } from "@/lib/twa";
 import {
-  getProduct, getOrders, getWallet, getUser,
+  getProducts, getOrders, getWallet, getUser,
   Product, Order, Wallet, UserInfo,
 } from "@/lib/api";
 
@@ -19,7 +19,7 @@ type TGUser = { id: number; first_name: string; last_name?: string; username?: s
 export default function App() {
   const [tab, setTab]         = useState<Tab>("home");
   const [tgUser, setTgUser]   = useState<TGUser>(null);
-  const [product, setProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders]   = useState<Order[]>([]);
   const [wallet, setWallet]   = useState<Wallet>({ balance: 0, deposits: [] });
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -28,12 +28,12 @@ export default function App() {
 
   // ── Load all data ──────────────────────────────────────────────────────────
   const loadData = useCallback(async (uid: number | null) => {
-    const [prod, ords, wal] = await Promise.all([
-      getProduct(),
+    const [prods, ords, wal] = await Promise.all([
+      getProducts(),
       uid ? getOrders(uid) : Promise.resolve([]),
       uid ? getWallet(uid) : Promise.resolve({ balance: 0, deposits: [] }),
     ]);
-    setProduct(prod);
+    setProducts(prods);
     setOrders(ords);
     setWallet(wal);
     if (uid) {
@@ -53,11 +53,11 @@ export default function App() {
     loadData(user?.id ?? null).finally(() => setReady(true));
   }, [loadData]);
 
-  // ── Auto-refresh product every 30s ────────────────────────────────────────
+  // ── Auto-refresh products every 30s ──────────────────────────────────────────────
   useEffect(() => {
     const timer = setInterval(async () => {
-      const fresh = await getProduct();
-      if (fresh) setProduct(fresh);
+      const fresh = await getProducts();
+      if (fresh) setProducts(fresh);
     }, 30000);
     return () => clearInterval(timer);
   }, []);
@@ -68,7 +68,7 @@ export default function App() {
     setOrders(ords);
   }, [tgUser]);
 
-  const handleProductRefresh = useCallback((p: Product) => setProduct(p), []);
+  const handleProductsRefresh = useCallback((p: Product[]) => setProducts(p), []);
 
   // ── Splash screen ──────────────────────────────────────────────────────────
   if (!ready) {
@@ -97,12 +97,12 @@ export default function App() {
   const renderTab = () => {
     switch (tab) {
       case "home":
-        return <HomeTab userId={tgUser?.id ?? null} product={product}
+        return <HomeTab userId={tgUser?.id ?? null} products={products}
           referralReward={referralReward}
           onBuySuccess={() => { reloadOrders(); setTab("orders"); }}
-          onRefresh={handleProductRefresh} />;
+          onRefresh={handleProductsRefresh} />;
       case "browse":
-        return <BrowseTab product={product} userId={tgUser?.id ?? null}
+        return <BrowseTab products={products} userId={tgUser?.id ?? null}
           onBuySuccess={() => { reloadOrders(); setTab("orders"); }} />;
       case "orders":
         return <OrdersTab orders={orders} onShop={() => setTab("home")} />;

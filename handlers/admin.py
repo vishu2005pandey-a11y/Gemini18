@@ -105,21 +105,30 @@ async def cb_admin_panel(callback: CallbackQuery):
 
 @router.callback_query(F.data == "admin:upload_stock")
 async def cb_admin_upload(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Admin only.", show_alert=True)
-        return
-    db_user = await db.get_user(callback.from_user.id)
-    lang = db_user["language"] if db_user else "en"
+    if not is_admin(callback.from_user.id): return
+    products = await db.get_products()
+    from aiogram.types import InlineKeyboardButton
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    builder = InlineKeyboardBuilder()
+    for p in products:
+        stock = await db.get_stock_count(p['id'])
+        builder.row(InlineKeyboardButton(text=f"{p['name']} (Stock: {stock})", callback_data=f"admin:upstock:{p['id']}"))
+    builder.row(InlineKeyboardButton(text="🔙 Back", callback_data="admin:panel"))
+    await callback.message.edit_text("<b>Select Product to Upload Stock:</b>", reply_markup=builder.as_markup(), parse_mode="HTML")
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("admin:upstock:"))
+async def cb_admin_upstock(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id): return
+    prod_id = int(callback.data.split(":")[2])
+    await state.update_data(upload_prod_id=prod_id)
     await callback.message.edit_text(
-        f"{E_PACKAGE} <b>Upload Stock</b>\n\n"
-        f"Send a <b>.txt file</b> with one redemption link per line.\n\n"
-        f"<i>Example:\nhttps://gemini.google.com/redeem/abc123\nhttps://gemini.google.com/redeem/def456</i>",
-        reply_markup=back_kb(lang, "admin:panel"),
+        f"📦 <b>Upload Stock</b>\n\nSend a <b>.txt file</b> with one redemption link per line.",
+        reply_markup=back_kb("en", "admin:upload_stock"),
         parse_mode="HTML"
     )
     await state.set_state(AdminStates.waiting_stock_file)
     await callback.answer()
-
 
 async def _process_stock_file(message: Message, state: FSMContext):
     """Core logic to process uploaded stock file."""
@@ -150,8 +159,10 @@ async def _process_stock_file(message: Message, state: FSMContext):
         await message.answer(f"{E_CROSS} File is empty — no links found.")
         return
 
-    added = await db.add_stock(links)
-    total = await db.get_stock_count()
+    data = await state.get_data()
+    prod_id = data.get("upload_prod_id", 1)
+    added = await db.add_stock(prod_id, links)
+    total = await db.get_stock_count(prod_id)
 
     await state.clear()
     await message.answer(
@@ -497,149 +508,62 @@ async def msg_referral_reward(message: Message, state: FSMContext):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Edit Product (image URL + description)
+# Manage Products
 # ─────────────────────────────────────────────────────────────────────────────
 
-@router.callback_query(F.data == "admin:edit_product")
-async def cb_edit_product(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Admin only.", show_alert=True)
+@router.callback_query(F.data == "admin:manage_products")
+async def cb_manage_products(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.fromuser_id if hasattr(callback, "fromuser_id") else callback.from_user.id):
         return
     db_user = await db.get_user(callback.from_user.id)
     lang = db_user["language"] if db_user else "en"
-
-    current_info = await db.get_product_info()
-    current_image = current_info.get("image_url", "")
-    current_desc = current_info.get("description", "")
-
-    await callback.message.edit_text(
-        f"🖼️ <b>Edit Product</b>\n\n"
-        f"<b>Step 1 of 2 — Image</b>\n\n"
-        f"Current: <code>{current_image or '(none)'}</code>\n\n"
-        f"Options:\n"
-        f"• Send a <b>photo</b> directly\n"
-        f"• Send an <b>image URL</b> (https://...)\n"
-        f"• Send <code>-</code> to remove image\n"
-        f"• Send <code>skip</code> to keep current",
-        reply_markup=back_kb(lang, "admin:panel"),
-        parse_mode="HTML"
-    )
-    await state.set_state(AdminStates.waiting_product_image)
-    await callback.answer()
-
-
-@router.message(AdminStates.waiting_product_image)
-async def msg_product_image(message: Message, state: FSMContext):
-    if not is_admin(message.from_user.id):
-        return
-    db_user = await db.get_user(message.from_user.id)
-    lang = db_user["language"] if db_user else "en"
-
-    text = message.text.strip() if message.text else ""
-
-    # Handle photo upload — get the file URL via get_file
-    if message.photo:
-        photo = message.photo[-1]
-        file = await message.bot.get_file(photo.file_id)
-        image_url = f"https://api.telegram.org/file/bot{message.bot.token}/{file.file_path}"
-        await state.update_data(product_image=image_url)
-    elif text == "-":
-        await state.update_data(product_image="")
-    elif text.lower() == "skip":
-        current_info2 = await db.get_product_info()
-        await state.update_data(product_image=current_info2.get("image_url", ""))
-    elif text.startswith("http://") or text.startswith("https://"):
-        await state.update_data(product_image=text)
-    else:
-        await message.answer(
-            f"{E_WARNING} Please send a photo, image URL, "
-            f"<code>-</code> to remove, or <code>skip</code> to keep current.",
-            parse_mode="HTML"
-        )
-        return
-
-    current_info = await db.get_product_info()
-    current_desc = current_info.get("description", "")
-
-    await message.answer(
-        f"{E_CHECK} Image saved!\n\n"
-        f"📝 <b>Now send the product description</b>\n\n"
-        f"Current description:\n<i>{current_desc}</i>",
-        reply_markup=back_kb(lang, "admin:panel"),
-        parse_mode="HTML"
-    )
-    await state.set_state(AdminStates.waiting_product_description)
-
-
-@router.message(AdminStates.waiting_product_description)
-async def msg_product_description(message: Message, state: FSMContext):
-    if not is_admin(message.from_user.id):
-        return
-    db_user = await db.get_user(message.from_user.id)
-    lang = db_user["language"] if db_user else "en"
-
-    description = message.text.strip() if message.text else ""
-    if not description:
-        await message.answer(f"{E_CROSS} Description cannot be empty.")
-        return
-
-    data = await state.get_data()
-    image_url = data.get("product_image", "")
-
-    await db.set_product_info(image_url=image_url, description=description)
-    await state.clear()
-
-    await message.answer(
-        f"{E_CHECK} <b>Product Uploaded Successfully!</b>\n\n"
-        f"🖼️ <b>Image:</b> <code>{image_url or '(none)'}</code>\n"
-        f"📝 <b>Description:</b> <i>{description}</i>\n\n"
-        f"<i>Mini App will show the updated product instantly.</i>",
-        reply_markup=admin_kb(lang),
-        parse_mode="HTML"
-    )
-    log.info("Admin %s updated product info", message.from_user.id)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Delete Product
-# ─────────────────────────────────────────────────────────────────────────────
-
-@router.callback_query(F.data == "admin:delete_product")
-async def cb_delete_product(callback: CallbackQuery):
-    if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Admin only.", show_alert=True)
-        return
-    db_user = await db.get_user(callback.from_user.id)
-    lang = db_user["language"] if db_user else "en"
-
+    
+    products = await db.get_products()
     from aiogram.types import InlineKeyboardButton
     from aiogram.utils.keyboard import InlineKeyboardBuilder
     builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="✅ Yes, Delete", callback_data="admin:delete_product_confirm"),
-        InlineKeyboardButton(text="❌ Cancel", callback_data="admin:panel"),
-    )
-
-    await callback.message.edit_text(
-        f"{E_WARNING} <b>Delete Product?</b>\n\n"
-        "This will clear the product image and description from the Mini App.\n\n"
-        "<i>Stock links will NOT be deleted.</i>",
-        reply_markup=builder.as_markup(),
-        parse_mode="HTML"
-    )
+    
+    for p in products:
+        builder.row(InlineKeyboardButton(text=f"{p['name']} - ${p['price']}", callback_data=f"admin:edit_prod:{p['id']}"))
+    
+    builder.row(InlineKeyboardButton(text="➕ Add Product", callback_data="admin:add_product"))
+    builder.row(InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="admin:panel"))
+    
+    await callback.message.edit_text("<b>Manage Products</b>", reply_markup=builder.as_markup(), parse_mode="HTML")
     await callback.answer()
 
+@router.callback_query(F.data == "admin:add_product")
+async def cb_add_product(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id): return
+    await callback.message.edit_text("Send product name:", reply_markup=back_kb("en", "admin:manage_products"))
+    await state.set_state(AdminStates.waiting_product_description)
+    await state.update_data(add_step="name")
 
-@router.callback_query(F.data == "admin:delete_product_confirm")
-async def cb_delete_product_confirm(callback: CallbackQuery):
-    if not is_admin(callback.from_user.id):
-        await callback.answer("⛔ Admin only.", show_alert=True)
-        return
-    db_user = await db.get_user(callback.from_user.id)
-    lang = db_user["language"] if db_user else "en"
-
-    # Clear product info
-    await db.set_product_info(image_url="", description="")
-    await callback.answer(f"🗑️ Product cleared!", show_alert=True)
-    await _send_admin_panel(callback, lang)
-    log.info("Admin %s deleted product info", callback.from_user.id)
+@router.message(AdminStates.waiting_product_description)
+async def msg_product_add_step(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id): return
+    data = await state.get_data()
+    step = data.get("add_step")
+    
+    if step == "name":
+        await state.update_data(name=message.text)
+        await message.answer("Send product price:")
+        await state.update_data(add_step="price")
+    elif step == "price":
+        try:
+            price = float(message.text)
+            await state.update_data(price=price)
+            await message.answer("Send product description:")
+            await state.update_data(add_step="desc")
+        except ValueError:
+            await message.answer("Invalid price.")
+    elif step == "desc":
+        await state.update_data(desc=message.text)
+        await message.answer("Send product image URL (or 'skip'):")
+        await state.update_data(add_step="image")
+    elif step == "image":
+        image_url = "" if message.text.lower() == "skip" else message.text
+        data = await state.get_data()
+        await db.add_product(data["name"], data["desc"], data["price"], image_url)
+        await state.clear()
+        await message.answer("Product added!", reply_markup=back_kb("en", "admin:manage_products"))

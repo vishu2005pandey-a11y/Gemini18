@@ -4,32 +4,30 @@ import ProductCard from "../ProductCard";
 import { useState, useCallback } from "react";
 import BuyModal from "../BuyModal";
 import { haptic } from "@/lib/twa";
-import { Product, getProduct } from "@/lib/api";
+import { Product, getProducts } from "@/lib/api";
 
 interface Props {
   userId: number | null;
-  product: Product | null;
+  products: Product[];
   referralReward?: number;
   onBuySuccess: () => void;
-  onRefresh?: (p: Product) => void;
+  onRefresh?: (p: Product[]) => void;
 }
 
-export default function HomeTab({ userId, product, referralReward = 0.50, onBuySuccess, onRefresh }: Props) {
-  const [showBuy, setShowBuy]     = useState(false);
+export default function HomeTab({ userId, products, referralReward = 0.50, onBuySuccess, onRefresh }: Props) {
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [filter, setFilter]       = useState("All");
   const [refreshing, setRefreshing] = useState(false);
 
-  const sold  = product?.sold  ?? 0;
-  const stock = product?.stock ?? 0;
-  const price = product?.price ?? 0;
-  const name  = product?.name  ?? "";
-  const imageUrl = product?.image_url ?? "";
+  const totalSold = products.reduce((acc, p) => acc + p.sold, 0);
+  const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
+  const avgRating = products.length > 0 ? (products.reduce((acc, p) => acc + p.rating, 0) / products.length).toFixed(1) : 0;
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     haptic("light");
     try {
-      const fresh = await getProduct();
+      const fresh = await getProducts();
       if (fresh && onRefresh) onRefresh(fresh);
     } finally {
       setRefreshing(false);
@@ -95,9 +93,9 @@ export default function HomeTab({ userId, product, referralReward = 0.50, onBuyS
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "Links Sold",  value: sold > 0  ? `${sold.toLocaleString()}+` : "—" },
-            { label: "In Stock",    value: stock > 0 ? stock.toLocaleString()       : "—" },
-            { label: "Rating",      value: product?.rating ? `${product.rating}★`   : "—" },
+            { label: "Links Sold",  value: totalSold > 0  ? `${totalSold.toLocaleString()}+` : "—" },
+            { label: "In Stock",    value: totalStock > 0 ? totalStock.toLocaleString()       : "—" },
+            { label: "Rating",      value: avgRating ? `${avgRating}★`   : "—" },
           ].map(({ label, value }) => (
             <div key={label} className="card p-3 flex flex-col items-center gap-1">
               <span className="text-[#6c63ff] font-bold text-sm">{value}</span>
@@ -107,7 +105,7 @@ export default function HomeTab({ userId, product, referralReward = 0.50, onBuyS
         </div>
 
         {/* Products */}
-        {product ? (
+        {products.length > 0 ? (
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-white font-bold text-base">All Products</h2>
@@ -134,27 +132,26 @@ export default function HomeTab({ userId, product, referralReward = 0.50, onBuyS
             </div>
 
             {/* Product grid */}
-            {(filter === "In stock" && stock <= 0) ? (
+            {(filter === "In stock" && totalStock <= 0) ? (
               <div className="card p-8 flex flex-col items-center gap-2 text-center">
                 <span className="text-3xl">📭</span>
                 <p className="text-white font-semibold">Out of Stock</p>
                 <p className="text-[#555566] text-sm">Check back soon!</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <ProductCard
-                  name={name}
-                  price={price}
-                  sold={sold}
-                  imageUrl={imageUrl}
-                  isNew
-                  outOfStock={stock <= 0}
-                  onBuy={() => setShowBuy(true)}
-                />
-                <div className="card p-4 flex flex-col items-center justify-center gap-2 opacity-40">
-                  <span className="text-3xl">🔒</span>
-                  <p className="text-[#555566] text-xs text-center">More coming soon</p>
-                </div>
+              <div className="grid grid-cols-1 gap-3">
+                {products.filter(p => filter === "All" || (filter === "In stock" && p.stock > 0) || (filter === "Featured" && p.id === 1)).map(p => (
+                  <ProductCard
+                    key={p.id}
+                    name={p.name}
+                    price={p.price}
+                    sold={p.sold}
+                    imageUrl={p.image_url}
+                    isNew={p.id === 1}
+                    outOfStock={p.stock <= 0}
+                    onBuy={() => setSelectedProduct(p)}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -168,12 +165,12 @@ export default function HomeTab({ userId, product, referralReward = 0.50, onBuyS
         )}
       </div>
 
-      {showBuy && product && (
+      {selectedProduct && (
         <BuyModal
-          product={{ name, price, stock }}
+          product={{ id: selectedProduct.id, name: selectedProduct.name, price: selectedProduct.price, stock: selectedProduct.stock }}
           userId={userId}
-          onClose={() => setShowBuy(false)}
-          onSuccess={() => { setShowBuy(false); onBuySuccess(); }}
+          onClose={() => setSelectedProduct(null)}
+          onSuccess={() => { setSelectedProduct(null); onBuySuccess(); }}
         />
       )}
     </div>

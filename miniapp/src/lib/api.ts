@@ -7,6 +7,7 @@
 const BASE = "/api";
 
 export interface Product {
+  id: number;
   name: string;
   price: number;
   stock: number;
@@ -102,12 +103,13 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // ── Product ──────────────────────────────────────────────────────────────────
-export async function getProduct(): Promise<Product> {
+export async function getProducts(): Promise<Product[]> {
   try {
-    return await apiFetch<Product>("/product");
+    return await apiFetch<Product[]>("/products");
   } catch {
-    return {
-      name: "Gemini Pro 18-Month Subscription",
+    return [{
+      id: 1,
+      name: "Premium Gemini AI Pro access",
       price: 4.99,
       stock: 0,
       sold: 69987,
@@ -115,7 +117,7 @@ export async function getProduct(): Promise<Product> {
       reviews: 0,
       image_url: "",
       description: "Premium Gemini AI Pro access for 18 months. Instant delivery via redemption link.",
-    };
+    }];
   }
 }
 
@@ -176,12 +178,13 @@ export async function getReviews(): Promise<Review[]> {
 // ── Create Order ─────────────────────────────────────────────────────────────
 export async function createOrder(
   userId: number,
+  productId: number,
   qty: number,
   initData: string
 ): Promise<CreateOrderResult> {
   return apiFetch<CreateOrderResult>("/create_order", {
     method: "POST",
-    body: JSON.stringify({ user_id: userId, qty, tg_init_data: initData }),
+    body: JSON.stringify({ user_id: userId, product_id: productId, qty, tg_init_data: initData }),
   });
 }
 

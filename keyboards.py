@@ -329,8 +329,7 @@ def admin_kb(lang: str = "en") -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=t(lang, "btn_referral_settings"), callback_data="admin:referral_settings"),
     )
     builder.row(
-        InlineKeyboardButton(text="🖼️  Edit Product", callback_data="admin:edit_product"),
-        InlineKeyboardButton(text="🗑️  Delete Product", callback_data="admin:delete_product"),
+        InlineKeyboardButton(text="Manage Products", callback_data="admin:manage_products"),
     )
     return builder.as_markup()
 
