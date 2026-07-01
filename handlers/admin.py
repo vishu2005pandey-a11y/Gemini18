@@ -111,7 +111,9 @@ async def cb_admin_upload(callback: CallbackQuery, state: FSMContext):
     db_user = await db.get_user(callback.from_user.id)
     lang = db_user["language"] if db_user else "en"
     await callback.message.edit_text(
-        t(lang, "upload_stock_prompt"),
+        f"{E_PACKAGE} <b>Upload Stock</b>\n\n"
+        f"Send a <b>.txt file</b> with one redemption link per line.\n\n"
+        f"<i>Example:\nhttps://gemini.google.com/redeem/abc123\nhttps://gemini.google.com/redeem/def456</i>",
         reply_markup=back_kb(lang, "admin:panel"),
         parse_mode="HTML"
     )
@@ -119,50 +121,65 @@ async def cb_admin_upload(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(AdminStates.waiting_stock_file, F.document)
-async def msg_stock_file(message: Message, state: FSMContext):
+async def _process_stock_file(message: Message, state: FSMContext):
+    """Core logic to process uploaded stock file."""
     if not is_admin(message.from_user.id):
         return
 
     db_user = await db.get_user(message.from_user.id)
     lang = db_user["language"] if db_user else "en"
 
-    doc: Document = message.document
+    doc = message.document
+    if not doc:
+        await message.answer(f"{E_CROSS} Please send a .txt file.")
+        return
 
-    file_bytes = io.BytesIO()
-    await message.bot.download(doc, destination=file_bytes)
-    file_bytes.seek(0)
-    content = file_bytes.read().decode("utf-8", errors="ignore")
-    links = [l.strip() for l in content.splitlines() if l.strip()]
+    try:
+        file_bytes = io.BytesIO()
+        await message.bot.download(doc, destination=file_bytes)
+        file_bytes.seek(0)
+        content = file_bytes.read().decode("utf-8", errors="ignore")
+    except Exception as e:
+        log.error("Stock file download error: %s", e)
+        await message.answer(f"{E_CROSS} Failed to read file: {e}")
+        return
+
+    links = [line.strip() for line in content.splitlines() if line.strip()]
+
+    if not links:
+        await message.answer(f"{E_CROSS} File is empty — no links found.")
+        return
 
     added = await db.add_stock(links)
     total = await db.get_stock_count()
 
     await state.clear()
     await message.answer(
-        t(lang, "stock_uploaded", count=added, total=total),
+        f"{E_CHECK} <b>Stock Uploaded!</b>\n\n"
+        f"📥 New links added: <b>{added}</b>\n"
+        f"📊 Total stock now: <b>{total}</b>",
         reply_markup=admin_kb(lang),
         parse_mode="HTML"
     )
 
-    # Low stock check — if we just went from low to restocked, skip alert
-    if total <= LOW_STOCK_THRESHOLD:
+    if 0 < total <= LOW_STOCK_THRESHOLD:
         await message.answer(t(lang, "low_stock_alert", stock=total), parse_mode="HTML")
 
     log.info("Admin %s uploaded %d links (total: %d)", message.from_user.id, added, total)
 
 
 @router.message(AdminStates.waiting_stock_file)
-async def msg_stock_file_fallback(message: Message, state: FSMContext):
-    """Fallback: handles messages without F.document filter — checks for document manually."""
+async def msg_stock_file(message: Message, state: FSMContext):
+    """Handle any message while waiting for stock file."""
     if not is_admin(message.from_user.id):
         return
-
     if message.document:
-        # Re-use the same logic for documents that slipped past the filter
-        return await msg_stock_file(message, state)
-
-    await message.answer(f"{E_CROSS} Please send a file with one link per line.")
+        await _process_stock_file(message, state)
+    else:
+        await message.answer(
+            f"{E_WARNING} Please send a <b>.txt file</b> with one link per line.",
+            parse_mode="HTML"
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
