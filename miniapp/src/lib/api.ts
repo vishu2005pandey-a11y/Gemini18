@@ -107,17 +107,7 @@ export async function getProducts(): Promise<Product[]> {
   try {
     return await apiFetch<Product[]>("/products");
   } catch {
-    return [{
-      id: 1,
-      name: "Premium Gemini AI Pro access",
-      price: 4.99,
-      stock: 0,
-      sold: 69987,
-      rating: 4.8,
-      reviews: 0,
-      image_url: "",
-      description: "Premium Gemini AI Pro access for 18 months. Instant delivery via redemption link.",
-    }];
+    return [];
   }
 }
 

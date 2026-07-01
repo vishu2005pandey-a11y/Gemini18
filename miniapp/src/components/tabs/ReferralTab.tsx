@@ -42,7 +42,7 @@ export default function ReferralTab({ userId }: Props) {
     haptic("medium");
     const twa = getTWA();
     if (twa) {
-      twa.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent("🤖 Get Gemini Pro 18m for just $4.99 via crypto! Instant delivery.")}`);
+      twa.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent("🤖 Visit our store and buy premium digital products!")}`);
     }
   };
 

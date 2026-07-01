@@ -8,16 +8,6 @@ export async function GET() {
     const data = await res.json();
     return NextResponse.json(data);
   } catch {
-    return NextResponse.json([{
-      id: 1,
-      name: "Premium Gemini AI Pro access",
-      price: 4.99,
-      stock: 0,
-      sold: 69987,
-      rating: 4.8,
-      reviews: 0,
-      image_url: "",
-      description: "Premium Gemini AI Pro access for 18 months. Instant delivery via redemption link.",
-    }]);
+    return NextResponse.json([]);
   }
 }

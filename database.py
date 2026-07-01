@@ -715,7 +715,7 @@ async def update_product(product_id: int, name: str, description: str, price: fl
         await db.commit()
 
 async def delete_product(product_id: int):
-    async with get_db() as db:
-        await db.execute("DELETE FROM products WHERE id = ?", (product_id,))
-        await db.execute("DELETE FROM stock WHERE product_id = ?", (product_id,))
-        await db.commit()
+    db = await get_db()
+    await db.execute("DELETE FROM products WHERE id = ?", (product_id,))
+    await db.execute("DELETE FROM stock WHERE product_id = ?", (product_id,))
+    await db.commit()
