@@ -1,0 +1,12 @@
+c:\Users\krish\Desktop\gemini\config.py: 🥉💎🎯🔥🥇🥈💫👑🏆
+c:\Users\krish\Desktop\gemini\database.py: 🆕
+c:\Users\krish\Desktop\gemini\get_ids.py: 💡📋📢💬
+c:\Users\krish\Desktop\gemini\keyboards.py: 💳🛍
+c:\Users\krish\Desktop\gemini\scheduler.py: 🥉🔗🕐🥈🥇📅🔟👑🏆
+c:\Users\krish\Desktop\gemini\handlers\admin.py: 🔗📊🎁📦📈💰👥
+c:\Users\krish\Desktop\gemini\handlers\profile.py: 🔕🔗📦📅🆔💰🔍🔒🔔
+c:\Users\krish\Desktop\gemini\handlers\referral.py: 🥈🔟🥉🥇
+c:\Users\krish\Desktop\gemini\handlers\reviews.py: 💬
+c:\Users\krish\Desktop\gemini\handlers\shop.py: 🔢🤖💱👤🆔💰📅🛒🎁🛍
+c:\Users\krish\Desktop\gemini\locales\en.py: 🔑🚫🌐🔢🥈💱🔄🏅💸🔍🔔🎁🛒🗓🏠🔧🇪🥇📦📢🇧📋🏆💬🛡🔐👇🆘💎🔥🔗📊💳🪪👋💰👑🆔👥🛍🇸🥉🎯🚀🇬🤖🏷📅👤📤💲
+c:\Users\krish\Desktop\gemini\locales\es.py: 🚫🌐🔢💱🔄💸🔍🔔🎁🗓🏠🔧🇪📦📢🇧📋🏆💬👇🆘🔗📊🪪🆔💰👑👥🛍🇸🇬🏷📅👤📤💲

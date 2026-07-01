@@ -48,9 +48,10 @@ async def cb_shop(callback: CallbackQuery):
         rating=stars,
         review_count=review_count,
     )
+    from config import MINI_APP_URL
     await callback.message.edit_text(
         text,
-        reply_markup=shop_kb(lang, price, in_stock=stock > 0),
+        reply_markup=shop_kb(lang, price, in_stock=stock > 0, mini_app_url=MINI_APP_URL),
         parse_mode="HTML"
     )
     await callback.answer()
@@ -269,6 +270,9 @@ async def _deliver_order(callback: CallbackQuery, order, lang: str):
     formatted_links = "\n".join(f"<code>{i+1}. {link}</code>" for i, link in enumerate(links))
 
     text = t(lang, "delivery_success", links=formatted_links, order_id=order_id)
+    # Send animated sticker before delivery
+    from stickers import send_sticker
+    await send_sticker(callback.bot, callback.message.chat.id, "success")
     await callback.message.edit_text(
         text,
         reply_markup=after_purchase_kb(lang, order_id),

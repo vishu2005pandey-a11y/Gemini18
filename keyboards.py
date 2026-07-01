@@ -29,15 +29,33 @@ def force_join_kb(lang: str = "en") -> InlineKeyboardMarkup:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main_menu_kb(lang: str = "en", mini_app_url: str = "") -> InlineKeyboardMarkup:
+    from aiogram.types import WebAppInfo
     builder = InlineKeyboardBuilder()
-    # Mini App button at top if URL is set
+
+    # ── Mini App button (green — WebApp type) ──────────────────────────
     if mini_app_url:
         builder.row(
-            InlineKeyboardButton(text="🛍️  Open Mini App", web_app={"url": mini_app_url})
+            InlineKeyboardButton(
+                text="🛍️  Open Mini App",
+                web_app=WebAppInfo(url=mini_app_url)
+            )
         )
-    builder.row(
-        InlineKeyboardButton(text=t(lang, "btn_shop"), callback_data="shop")
-    )
+
+    # ── Shop button GREEN — use web_app with mini_app_url or url fallback ──
+    if mini_app_url:
+        # WebApp button = GREEN background in Telegram
+        builder.row(
+            InlineKeyboardButton(
+                text=t(lang, "btn_shop"),
+                web_app=WebAppInfo(url=mini_app_url)
+            )
+        )
+    else:
+        # No mini app — normal callback (blue)
+        builder.row(
+            InlineKeyboardButton(text=t(lang, "btn_shop"), callback_data="shop")
+        )
+
     builder.row(
         InlineKeyboardButton(text=t(lang, "btn_profile"), callback_data="profile"),
         InlineKeyboardButton(text=t(lang, "btn_orders"), callback_data="orders"),
@@ -57,8 +75,19 @@ def main_menu_kb(lang: str = "en", mini_app_url: str = "") -> InlineKeyboardMark
 # Shop
 # ─────────────────────────────────────────────────────────────────────────────
 
-def shop_kb(lang: str = "en", price: float = 4.99, in_stock: bool = True) -> InlineKeyboardMarkup:
+def shop_kb(lang: str = "en", price: float = 4.99, in_stock: bool = True, mini_app_url: str = "") -> InlineKeyboardMarkup:
+    from aiogram.types import WebAppInfo
     builder = InlineKeyboardBuilder()
+
+    # Green "Buy Now" button via WebApp if available
+    if mini_app_url and in_stock:
+        builder.row(
+            InlineKeyboardButton(
+                text=f"🛍️  Buy Now — ${price:.2f}",
+                web_app=WebAppInfo(url=mini_app_url)
+            )
+        )
+
     if in_stock:
         builder.row(
             InlineKeyboardButton(

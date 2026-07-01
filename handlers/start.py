@@ -27,7 +27,7 @@ async def _is_member(bot, user_id: int) -> bool:
         return False  # fail safe — require join
 
 
-async def send_main_menu(message: Message | CallbackQuery, lang: str):
+async def send_main_menu(message: Message | CallbackQuery, lang: str, show_sticker: bool = False):
     """Send (or edit) the main menu message."""
     stock = await db.get_stock_count()
     links_sold_db = await db.get_total_links_sold()
@@ -37,9 +37,11 @@ async def send_main_menu(message: Message | CallbackQuery, lang: str):
         user = message.from_user
         name = user.first_name or "there"
         text = t(lang, "welcome", name=name, links_sold=f"{links_sold:,}", stock=stock)
+        if show_sticker:
+            from stickers import send_sticker
+            await send_sticker(message.bot, message.chat.id, "welcome")
         await message.answer(text, reply_markup=main_menu_kb(lang, MINI_APP_URL), parse_mode="HTML")
     else:
-        # CallbackQuery — edit existing message
         user = message.from_user
         name = user.first_name or "there"
         text = t(lang, "welcome", name=name, links_sold=f"{links_sold:,}", stock=stock)
@@ -80,7 +82,7 @@ async def cmd_start(message: Message, command: CommandObject):
         await message.answer(text, reply_markup=force_join_kb(lang), parse_mode="HTML")
         return
 
-    await send_main_menu(message, lang)
+    await send_main_menu(message, lang, show_sticker=True)
 
 
 @router.callback_query(F.data == "check_join")
