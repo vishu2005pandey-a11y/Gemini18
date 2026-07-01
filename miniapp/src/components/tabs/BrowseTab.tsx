@@ -41,7 +41,7 @@ export default function BrowseTab({ products, userId, onBuySuccess }: Props) {
                       unoptimized
                     />
                   ) : (
-                    <span className="text-6xl">??</span>
+                    <span className="text-6xl">💎</span>
                   )}
                 </div>
 
@@ -50,11 +50,11 @@ export default function BrowseTab({ products, userId, onBuySuccess }: Props) {
                   <h2 className="text-white font-bold text-lg leading-tight flex-1">{product.name}</h2>
                   {product.stock > 0 ? (
                     <span className="flex-shrink-0 text-xs px-2.5 py-1 rounded-full bg-[#22d3a522] text-[#22d3a5] font-medium">
-                      ? In Stock
+                      ✓ In Stock
                     </span>
                   ) : (
                     <span className="flex-shrink-0 text-xs px-2.5 py-1 rounded-full bg-[#ff4f6e22] text-[#ff4f6e] font-medium">
-                      ? Out of Stock
+                      ✕ Out of Stock
                     </span>
                   )}
                 </div>
@@ -71,9 +71,9 @@ export default function BrowseTab({ products, userId, onBuySuccess }: Props) {
                     <span className="text-white font-semibold">{product.rating}</span>
                     <span className="text-[#555566]">({product.reviews} reviews)</span>
                   </div>
-                  <span className="text-[#555566]">�</span>
+                  <span className="text-[#555566]">•</span>
                   <span className="text-[#555566]">{product.sold.toLocaleString()} sold</span>
-                  <span className="text-[#555566]">�</span>
+                  <span className="text-[#555566]">•</span>
                   <span className="text-[#555566]">{product.stock} in stock</span>
                 </div>
 
@@ -96,7 +96,7 @@ export default function BrowseTab({ products, userId, onBuySuccess }: Props) {
             ))}
           </>
         ) : (
-          /* Empty state � no product uploaded yet */
+          /* Empty state — no product uploaded yet */
           <div className="card p-10 flex flex-col items-center gap-4 text-center mt-4">
             <div className="w-16 h-16 rounded-2xl bg-[#1a1a24] flex items-center justify-center">
               <Package size={28} className="text-[#555566]" />
