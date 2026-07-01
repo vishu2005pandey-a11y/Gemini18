@@ -127,10 +127,10 @@ def shop_kb(lang: str = "en", price: float = 4.99, in_stock: bool = True, mini_a
 # Terms
 # ─────────────────────────────────────────────────────────────────────────────
 
-def terms_kb(lang: str = "en", qty: int = 1) -> InlineKeyboardMarkup:
+def terms_kb(lang: str = "en", prod_id: int = 1, qty: int = 1) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text=t(lang, "btn_agree"), callback_data=f"agree:{qty}"),
+        InlineKeyboardButton(text=t(lang, "btn_agree"), callback_data=f"agree:{prod_id}:{qty}"),
         InlineKeyboardButton(text=t(lang, "btn_decline"), callback_data="main_menu"),
     )
     return builder.as_markup()

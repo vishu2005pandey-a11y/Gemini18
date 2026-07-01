@@ -10,7 +10,7 @@ from aiogram.fsm.state import State, StatesGroup
 import database as db
 import payments as pay
 from config import PAYMENT_TIMEOUT_MINUTES, PRODUCT_NAME, ADMIN_IDS, ADMIN_LOG_GROUP_ID
-from keyboards import shop_kb, terms_kb, payment_kb, after_purchase_kb, back_kb
+from keyboards import shop_product_list_kb, product_detail_kb, terms_kb, payment_kb, after_purchase_kb, back_kb
 from locales import get as t
 from locales.en import (
     E_CHECK, E_CROSS, E_WARNING, E_FIRE, E_DIAMOND, E_TROPHY,
@@ -38,33 +38,49 @@ async def cb_shop(callback: CallbackQuery):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    price = await db.get_price()
-    stock = await db.get_stock_count()
-    total_sold = await db.get_total_links_sold()
-    avg_rating, review_count = await db.get_avg_rating()
-
-    stars = "⭐" * round(avg_rating) if avg_rating else "☆☆☆☆☆"
-    text = t(lang, "shop_header") + t(
-        lang, "product_card",
-        name=PRODUCT_NAME,
-        price=f"{price:.2f}",
-        stock=stock,
-        sold=f"{total_sold:,}",
-        rating=stars,
-        review_count=review_count,
-    )
-    from config import MINI_APP_URL
+    products = await db.get_products()
+    stock_map = {}
+    for p in products:
+        stock_map[p["id"]] = await db.get_stock_count(p["id"])
+    
+    text = f"{E_CART} <b>Catálogo de productos</b>\n\n{E_CHECK} Entrega automática al instante\n\n⬇️ Elige tu producto:"
     await callback.message.edit_text(
         text,
-        reply_markup=shop_kb(lang, price, in_stock=stock > 0, mini_app_url=MINI_APP_URL),
+        reply_markup=shop_product_list_kb(lang, products, stock_map),
         parse_mode="HTML"
     )
     await callback.answer()
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Buy — standard quantities
-# ─────────────────────────────────────────────────────────────────────────────
+@router.callback_query(F.data.startswith("view_prod:"))
+async def cb_view_prod(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    db_user = await db.get_user(user_id)
+    lang = db_user["language"] if db_user else "en"
+    
+    prod_id = int(callback.data.split(":")[1])
+    p = await db.get_product(prod_id)
+    if not p: return await callback.answer("Product not found.", show_alert=True)
+    
+    stock = await db.get_stock_count(prod_id)
+    sold = p['sold_count'] if 'sold_count' in p.keys() else 123
+    
+    text = t(lang, "shop_header") + t(
+        lang, "product_card",
+        name=p['name'],
+        price=f"{p['price']:.2f}",
+        stock=stock,
+        sold=f"{sold:,}",
+        rating="⭐⭐⭐⭐⭐",
+        review_count=12,
+    )
+    text = text.replace("Premium Gemini AI Pro access for 18 months.", p['description'] or "")
+    
+    await callback.message.edit_text(
+        text,
+        reply_markup=product_detail_kb(lang, prod_id, p['price'], stock > 0),
+        parse_mode="HTML"
+    )
+    await callback.answer()
 
 @router.callback_query(F.data.startswith("buy:"))
 async def cb_buy(callback: CallbackQuery, state: FSMContext):
@@ -72,22 +88,24 @@ async def cb_buy(callback: CallbackQuery, state: FSMContext):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    qty_str = callback.data.split(":")[1]
+    parts = callback.data.split(":")
+    prod_id = int(parts[1])
+    qty_str = parts[2]
 
     if qty_str == "custom":
         await callback.message.edit_text(
             t(lang, "custom_qty_prompt"),
-            reply_markup=back_kb(lang, "shop"),
+            reply_markup=back_kb(lang, f"view_prod:{prod_id}"),
             parse_mode="HTML"
         )
+        await state.update_data(buy_prod_id=prod_id)
         await state.set_state(BuyStates.waiting_custom_qty)
         await callback.answer()
         return
 
     qty = int(qty_str)
-    await _show_terms(callback, lang, qty)
+    await _show_terms(callback, lang, prod_id, qty)
     await callback.answer()
-
 
 @router.message(BuyStates.waiting_custom_qty)
 async def msg_custom_qty(message: Message, state: FSMContext):
@@ -95,6 +113,10 @@ async def msg_custom_qty(message: Message, state: FSMContext):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
+    data = await state.get_data()
+    prod_id = data.get("buy_prod_id")
+    if not prod_id: return
+    
     try:
         qty = int(message.text.strip())
         if not 1 <= qty <= 100:
@@ -104,28 +126,25 @@ async def msg_custom_qty(message: Message, state: FSMContext):
         return
 
     await state.clear()
-    stock = await db.get_stock_count()
+    stock = await db.get_stock_count(prod_id)
     if qty > stock:
         await message.answer(t(lang, "insufficient_stock", stock=stock), parse_mode="HTML")
         return
 
-    price = await db.get_price()
-    total = round(price * qty, 2)
     text = t(lang, "terms")
-    await message.answer(text, reply_markup=terms_kb(lang, qty), parse_mode="HTML")
+    await message.answer(text, reply_markup=terms_kb(lang, prod_id, qty), parse_mode="HTML")
 
-
-async def _show_terms(callback: CallbackQuery, lang: str, qty: int):
-    stock = await db.get_stock_count()
+async def _show_terms(callback: CallbackQuery, lang: str, prod_id: int, qty: int):
+    stock = await db.get_stock_count(prod_id)
     if qty > stock:
         await callback.message.edit_text(
             t(lang, "insufficient_stock", stock=stock),
-            reply_markup=back_kb(lang, "shop"),
+            reply_markup=back_kb(lang, f"view_prod:{prod_id}"),
             parse_mode="HTML"
         )
         return
     text = t(lang, "terms")
-    await callback.message.edit_text(text, reply_markup=terms_kb(lang, qty), parse_mode="HTML")
+    await callback.message.edit_text(text, reply_markup=terms_kb(lang, prod_id, qty), parse_mode="HTML")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -138,8 +157,12 @@ async def cb_agree(callback: CallbackQuery):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    qty = int(callback.data.split(":")[1])
-    price = await db.get_price()
+    parts = callback.data.split(":")
+    prod_id = int(parts[1])
+    qty = int(parts[2])
+
+    p = await db.get_product(prod_id)
+    price = p['price']
     total = round(price * qty, 2)
 
     # Check if user has a pending order already
@@ -149,11 +172,11 @@ async def cb_agree(callback: CallbackQuery):
         return
 
     # Check stock
-    stock = await db.get_stock_count()
+    stock = await db.get_stock_count(prod_id)
     if qty > stock:
         await callback.message.edit_text(
             t(lang, "insufficient_stock", stock=stock),
-            reply_markup=back_kb(lang, "shop"),
+            reply_markup=back_kb(lang, f"view_prod:{prod_id}"),
             parse_mode="HTML"
         )
         await callback.answer()
@@ -182,10 +205,10 @@ async def cb_agree(callback: CallbackQuery):
     currency = invoice.get("payer_currency") or invoice.get("to_currency") or "USDT"
     pay_url = invoice.get("url", "")
 
-    # Save order to DB
     await db.create_order(
         order_id=order_id,
         user_id=user_id,
+        product_id=prod_id,
         qty=qty,
         amount_usd=total,
         payment_id=payment_uuid,
@@ -196,7 +219,7 @@ async def cb_agree(callback: CallbackQuery):
 
     text = t(
         lang, "payment_invoice",
-        product=PRODUCT_NAME,
+        product=p['name'],
         qty=qty,
         total=f"{total:.2f}",
         currency=currency,
