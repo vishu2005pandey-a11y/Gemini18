@@ -1,6 +1,7 @@
 "use client";
-import { Heart, Star, ShoppingCart } from "lucide-react";
+import { Heart, ShoppingCart } from "lucide-react";
 import { haptic } from "@/lib/twa";
+import Image from "next/image";
 
 interface Props {
   name: string;
@@ -10,10 +11,13 @@ interface Props {
   isNew?: boolean;
   isSale?: boolean;
   outOfStock?: boolean;
+  imageUrl?: string;
   onBuy: () => void;
 }
 
-export default function ProductCard({ name, price, sold, stock, isNew, isSale, outOfStock, onBuy }: Props) {
+export default function ProductCard({
+  name, price, sold, stock, isNew, isSale, outOfStock, imageUrl, onBuy,
+}: Props) {
   return (
     <div className="card p-3 flex flex-col gap-2 relative">
       {/* Tags */}
@@ -32,9 +36,20 @@ export default function ProductCard({ name, price, sold, stock, isNew, isSale, o
         <Heart size={16} />
       </button>
 
-      {/* Product Icon */}
-      <div className="w-full aspect-square rounded-xl bg-[#1a1a24] flex items-center justify-center mt-1">
-        <span className="text-4xl">🤖</span>
+      {/* Product Image */}
+      <div className="w-full aspect-square rounded-xl bg-[#1a1a24] flex items-center justify-center mt-1 overflow-hidden">
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={name}
+            width={200}
+            height={200}
+            className="w-full h-full object-cover rounded-xl"
+            unoptimized
+          />
+        ) : (
+          <span className="text-4xl">🤖</span>
+        )}
       </div>
 
       {/* Info */}

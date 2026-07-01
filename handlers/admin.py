@@ -24,6 +24,8 @@ class AdminStates(StatesGroup):
     waiting_ban_id = State()
     waiting_unban_id = State()
     waiting_referral_reward = State()
+    waiting_product_image = State()
+    waiting_product_description = State()
 
 
 def _admin_only(func):
@@ -462,3 +464,94 @@ async def msg_referral_reward(message: Message, state: FSMContext):
         reply_markup=admin_kb(lang),
         parse_mode="HTML"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Edit Product (image URL + description)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "admin:edit_product")
+async def cb_edit_product(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔ Admin only.", show_alert=True)
+        return
+    db_user = await db.get_user(callback.from_user.id)
+    lang = db_user["language"] if db_user else "en"
+
+    current_info = await db.get_product_info()
+    current_image = current_info.get("image_url", "")
+    current_desc = current_info.get("description", "")
+
+    await callback.message.edit_text(
+        f"🖼️ <b>Edit Product Image</b>\n\n"
+        f"Current image URL:\n<code>{current_image or '(none)'}</code>\n\n"
+        f"Send a new image URL (or send <code>-</code> to clear it):",
+        reply_markup=back_kb(lang, "admin:panel"),
+        parse_mode="HTML"
+    )
+    await state.set_state(AdminStates.waiting_product_image)
+    await callback.answer()
+
+
+@router.message(AdminStates.waiting_product_image)
+async def msg_product_image(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    db_user = await db.get_user(message.from_user.id)
+    lang = db_user["language"] if db_user else "en"
+
+    text = message.text.strip() if message.text else ""
+
+    # Handle photo upload — get the file URL via get_file
+    if message.photo:
+        photo = message.photo[-1]
+        file = await message.bot.get_file(photo.file_id)
+        image_url = f"https://api.telegram.org/file/bot{message.bot.token}/{file.file_path}"
+        await state.update_data(product_image=image_url)
+    elif text == "-":
+        await state.update_data(product_image="")
+    elif text.startswith("http://") or text.startswith("https://"):
+        await state.update_data(product_image=text)
+    else:
+        await message.answer("❌ Please send a valid image URL starting with http/https, or send <code>-</code> to clear.", parse_mode="HTML")
+        return
+
+    current_info = await db.get_product_info()
+    current_desc = current_info.get("description", "")
+
+    await message.answer(
+        f"✅ Image saved!\n\n"
+        f"📝 <b>Now send the product description</b>\n\n"
+        f"Current description:\n<i>{current_desc}</i>",
+        reply_markup=back_kb(lang, "admin:panel"),
+        parse_mode="HTML"
+    )
+    await state.set_state(AdminStates.waiting_product_description)
+
+
+@router.message(AdminStates.waiting_product_description)
+async def msg_product_description(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    db_user = await db.get_user(message.from_user.id)
+    lang = db_user["language"] if db_user else "en"
+
+    description = message.text.strip() if message.text else ""
+    if not description:
+        await message.answer("❌ Description cannot be empty.")
+        return
+
+    data = await state.get_data()
+    image_url = data.get("product_image", "")
+
+    await db.set_product_info(image_url=image_url, description=description)
+    await state.clear()
+
+    await message.answer(
+        f"✅ <b>Product updated!</b>\n\n"
+        f"🖼️ Image: <code>{image_url or '(none)'}</code>\n"
+        f"📝 Description: <i>{description}</i>",
+        reply_markup=admin_kb(lang),
+        parse_mode="HTML"
+    )
+    log.info("Admin %s updated product info", message.from_user.id)

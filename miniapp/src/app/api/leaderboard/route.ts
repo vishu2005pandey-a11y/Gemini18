@@ -3,10 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 const BOT_API = process.env.BOT_BACKEND_URL || "http://localhost:8080";
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("user_id");
-  if (!userId) return NextResponse.json([]);
+  const period = req.nextUrl.searchParams.get("period") || "alltime";
   try {
-    const res = await fetch(`${BOT_API}/orders?user_id=${userId}`);
+    const res = await fetch(`${BOT_API}/leaderboard?period=${period}`);
     const data = await res.json();
     return NextResponse.json(data);
   } catch {

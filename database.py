@@ -107,6 +107,8 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('price', '4.99');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('maintenance', 'false');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('referral_reward', '0.50');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('links_sold_base', '69987');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('product_image_url', '');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('product_description', 'Premium Gemini AI Pro access for 18 months. Instant delivery via redemption link.');
 
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
@@ -573,6 +575,34 @@ async def set_maintenance(enabled: bool):
 async def get_referral_reward() -> float:
     val = await get_setting("referral_reward")
     return float(val) if val else 0.50
+
+
+async def get_product_info() -> dict:
+    """Returns product info dict with name, price, stock, sold, rating, reviews, image_url, description."""
+    from config import PRODUCT_NAME, LINKS_SOLD_COUNTER_BASE
+    price = await get_price()
+    stock = await get_stock_count()
+    sold_db = await get_total_links_sold()
+    sold = LINKS_SOLD_COUNTER_BASE + sold_db
+    avg_rating, review_count = await get_avg_rating()
+    image_url = await get_setting("product_image_url") or ""
+    description = await get_setting("product_description") or "Premium Gemini AI Pro access for 18 months. Instant delivery via redemption link."
+    return {
+        "name": PRODUCT_NAME,
+        "price": price,
+        "stock": stock,
+        "sold": sold,
+        "rating": avg_rating if avg_rating else 4.8,
+        "reviews": review_count,
+        "image_url": image_url,
+        "description": description,
+    }
+
+
+async def set_product_info(image_url: str, description: str):
+    """Saves product image_url and description to settings table."""
+    await set_setting("product_image_url", image_url)
+    await set_setting("product_description", description)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Badge helper

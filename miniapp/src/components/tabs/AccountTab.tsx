@@ -1,43 +1,52 @@
 "use client";
-import { Gift, Heart, Globe, HelpCircle, LogOut, ChevronRight } from "lucide-react";
-import { haptic, closeMiniApp } from "@/lib/twa";
+import { Gift, HelpCircle, LogOut, ChevronRight, Trophy } from "lucide-react";
+import { haptic, closeMiniApp, getTWA } from "@/lib/twa";
+import { UserInfo } from "@/lib/api";
 
 interface Props {
-  user: any;
+  user: { id?: number; first_name?: string; last_name?: string; username?: string } | null;
+  userInfo: UserInfo | null;
   onReferral: () => void;
+  onLeaderboard: () => void;
 }
 
-export default function AccountTab({ user, onReferral }: Props) {
-  const name = user?.first_name
-    ? `${user.first_name}${user.last_name ? " " + user.last_name : ""}`
-    : "Alpha α";
-  const username = user?.username ? `@${user.username}` : "";
+export default function AccountTab({ user, userInfo, onReferral, onLeaderboard }: Props) {
+  const firstName = userInfo?.first_name || user?.first_name || "Alpha";
+  const lastName = user?.last_name || "";
+  const name = lastName ? `${firstName} ${lastName}` : firstName;
+  const username = userInfo?.username || user?.username;
   const initials = name.charAt(0).toUpperCase();
+
+  const badge = userInfo?.badge || "🆕 New Member";
+  const totalOrders = userInfo?.total_orders ?? 0;
+  const linksBought = userInfo?.links_bought ?? 0;
+  const totalSpent = userInfo?.total_spent ?? 0;
+  const referralBalance = userInfo?.referral_balance ?? 0;
+
+  const openSupport = () => {
+    haptic("light");
+    const twa = getTWA();
+    if (twa) {
+      twa.openTelegramLink("https://t.me/GammaChkerbot");
+    }
+  };
 
   const menuItems = [
     {
       icon: Gift,
       label: "Refer & Earn",
-      sub: "Invite friends — earn commission on every order",
+      sub: `Invite friends — earn commission. Balance: $${referralBalance.toFixed(2)}`,
       iconColor: "#6c63ff",
       iconBg: "#6c63ff22",
       action: onReferral,
     },
     {
-      icon: Heart,
-      label: "My Wishlist",
-      sub: "Products you've saved for later",
-      iconColor: "#ff4f6e",
-      iconBg: "#ff4f6e22",
-      action: () => haptic("light"),
-    },
-    {
-      icon: Globe,
-      label: "Website login",
-      sub: "Optional — set email & password to sign in on the website",
-      iconColor: "#22d3a5",
-      iconBg: "#22d3a522",
-      action: () => haptic("light"),
+      icon: Trophy,
+      label: "Leaderboard",
+      sub: "See top buyers and rankings",
+      iconColor: "#fbbf24",
+      iconBg: "#fbbf2422",
+      action: onLeaderboard,
     },
     {
       icon: HelpCircle,
@@ -45,7 +54,7 @@ export default function AccountTab({ user, onReferral }: Props) {
       sub: "FAQs and contact our team on Telegram",
       iconColor: "#4f8eff",
       iconBg: "#4f8eff22",
-      action: () => haptic("light"),
+      action: openSupport,
     },
   ];
 
@@ -68,13 +77,17 @@ export default function AccountTab({ user, onReferral }: Props) {
           </div>
           <div>
             <p className="text-white font-bold text-lg leading-tight">{name}</p>
-            {username && <p className="text-[#8888aa] text-sm">{username}</p>}
+            {username && <p className="text-[#8888aa] text-sm">@{username}</p>}
             {/* Badge */}
             <span
               className="inline-block mt-1 text-xs px-2.5 py-0.5 rounded-full font-medium"
-              style={{ background: "linear-gradient(135deg, #6c63ff22 0%, #4f8eff22 100%)", border: "1px solid #6c63ff44", color: "#6c63ff" }}
+              style={{
+                background: "linear-gradient(135deg, #6c63ff22 0%, #4f8eff22 100%)",
+                border: "1px solid #6c63ff44",
+                color: "#6c63ff",
+              }}
             >
-              🆕 New Member
+              {badge}
             </span>
           </div>
         </div>
@@ -82,9 +95,9 @@ export default function AccountTab({ user, onReferral }: Props) {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "Orders", value: "0" },
-            { label: "Links", value: "0" },
-            { label: "Spent", value: "$0.00" },
+            { label: "Orders", value: totalOrders.toString() },
+            { label: "Links", value: linksBought.toString() },
+            { label: "Spent", value: `$${totalSpent.toFixed(2)}` },
           ].map(({ label, value }) => (
             <div key={label} className="card p-3 flex flex-col items-center gap-0.5">
               <p className="text-white font-bold text-base">{value}</p>
@@ -115,6 +128,21 @@ export default function AccountTab({ user, onReferral }: Props) {
             </button>
           ))}
         </div>
+
+        {/* Referral balance highlight */}
+        {referralBalance > 0 && (
+          <div
+            className="rounded-2xl p-4 flex items-center justify-between"
+            style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)", border: "1px solid #6c63ff44" }}
+          >
+            <div>
+              <p className="text-[#6c63ff] text-xs font-semibold uppercase tracking-wide">Referral Balance</p>
+              <p className="text-white font-bold text-xl">${referralBalance.toFixed(2)}</p>
+              <p className="text-[#555566] text-xs mt-0.5">Available to withdraw from $3.00</p>
+            </div>
+            <div className="text-3xl">💰</div>
+          </div>
+        )}
 
         {/* Sign out */}
         <button

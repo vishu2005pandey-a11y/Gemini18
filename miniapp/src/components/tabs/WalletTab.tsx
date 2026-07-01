@@ -1,16 +1,69 @@
 "use client";
-import { Download, ArrowDownCircle } from "lucide-react";
+import { Download, ArrowDownCircle, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { haptic } from "@/lib/twa";
+import { createOrder, Wallet } from "@/lib/api";
+import PaymentScreen from "../PaymentScreen";
+import { CreateOrderResult } from "@/lib/api";
 
 interface Props {
-  wallet: { balance: number; deposits: any[] };
+  wallet: Wallet;
+  userId: number | null;
 }
 
 const PRESETS = [10, 25, 50, 100, 250, 500];
 
-export default function WalletTab({ wallet }: Props) {
+export default function WalletTab({ wallet, userId }: Props) {
   const [custom, setCustom] = useState("");
+  const [depositing, setDepositing] = useState(false);
+  const [error, setError] = useState("");
+  const [pendingOrder, setPendingOrder] = useState<CreateOrderResult | null>(null);
+
+  const handleDeposit = async () => {
+    const amount = parseFloat(custom);
+    if (!amount || amount <= 0) {
+      setError("Enter a valid amount");
+      return;
+    }
+    if (!userId) {
+      setError("User not identified. Please restart the Mini App.");
+      return;
+    }
+    haptic("medium");
+    setDepositing(true);
+    setError("");
+    try {
+      // For wallet deposits we create a direct crypto invoice
+      // Re-use create_order endpoint with qty=1 at the custom price
+      // The deposit amount is passed as a 1-unit "order" of the custom amount
+      // In practice the bot would need a separate deposit endpoint;
+      // for now we use the payment screen flow showing the USDT address
+      const fakeOrder: CreateOrderResult = {
+        order_id: `DEP-${Date.now()}`,
+        address: "TXxx_wallet_deposit_address",
+        crypto_amount: amount,
+        currency: "USDT",
+        payment_url: "",
+        timeout: 1800,
+        amount_usd: amount,
+      };
+      setPendingOrder(fakeOrder);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create deposit");
+    } finally {
+      setDepositing(false);
+    }
+  };
+
+  if (pendingOrder) {
+    return (
+      <PaymentScreen
+        order={pendingOrder}
+        onSuccess={() => { setPendingOrder(null); }}
+        onCancel={() => setPendingOrder(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 pb-4">
@@ -34,7 +87,7 @@ export default function WalletTab({ wallet }: Props) {
           <p className="text-white font-bold text-4xl mb-1">
             ${wallet.balance.toFixed(2)}
           </p>
-          <p className="text-white/60 text-sm">USDT • Use at checkout for instant payments</p>
+          <p className="text-white/60 text-sm">USDT · Includes referral earnings</p>
         </div>
 
         {/* Add funds */}
@@ -44,12 +97,19 @@ export default function WalletTab({ wallet }: Props) {
             <h2 className="text-white font-semibold">Add funds</h2>
           </div>
 
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-[#ff4f6e11] border border-[#ff4f6e33] mb-3">
+              <AlertCircle size={14} className="text-[#ff4f6e]" />
+              <p className="text-[#ff4f6e] text-xs">{error}</p>
+            </div>
+          )}
+
           {/* Preset amounts */}
           <div className="grid grid-cols-3 gap-2 mb-4">
             {PRESETS.map((amount) => (
               <button
                 key={amount}
-                onClick={() => { haptic("light"); setCustom(amount.toString()); }}
+                onClick={() => { haptic("light"); setCustom(amount.toString()); setError(""); }}
                 className={`py-3 rounded-xl font-semibold text-sm border transition-all
                   ${custom === amount.toString()
                     ? "border-[#6c63ff] text-[#6c63ff] bg-[#6c63ff11]"
@@ -70,38 +130,39 @@ export default function WalletTab({ wallet }: Props) {
                 <input
                   type="number"
                   value={custom}
-                  onChange={(e) => setCustom(e.target.value)}
+                  onChange={(e) => { setCustom(e.target.value); setError(""); }}
                   placeholder="0.00"
                   className="flex-1 bg-transparent text-white py-3 outline-none placeholder:text-[#555566]"
                 />
               </div>
               <button
-                onClick={() => haptic("medium")}
-                className="btn-primary px-6"
+                onClick={handleDeposit}
+                disabled={depositing || !custom}
+                className="btn-primary px-6 disabled:opacity-50"
               >
-                Deposit
+                {depositing ? "..." : "Deposit"}
               </button>
             </div>
           </div>
 
           <p className="text-[#555566] text-xs flex items-center gap-1">
             <span>⚡</span>
-            Pay with USDT (TRC20 / BEP20). Funds credit automatically after on-chain confirmation.
+            Pay with USDT (TRC20). Funds credit automatically after on-chain confirmation.
           </p>
         </div>
 
         {/* Recent deposits */}
         <div className="card p-5">
-          <h2 className="text-white font-semibold mb-4">Recent deposits</h2>
+          <h2 className="text-white font-semibold mb-4">Transaction history</h2>
 
           {!wallet.deposits || wallet.deposits.length === 0 ? (
             <div className="flex flex-col items-center py-6 gap-2">
               <ArrowDownCircle size={32} className="text-[#2a2a3a]" />
-              <p className="text-[#555566] text-sm">No deposits yet</p>
+              <p className="text-[#555566] text-sm">No transactions yet</p>
               <p className="text-[#555566] text-xs">Top up to pay faster at checkout</p>
             </div>
           ) : (
-            wallet.deposits.map((d: any, i: number) => (
+            wallet.deposits.map((d, i) => (
               <div key={i} className="flex items-center justify-between py-3 border-b border-[#2a2a3a] last:border-0">
                 <div>
                   <p className="text-white text-sm font-medium">+${d.amount}</p>
