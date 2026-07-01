@@ -19,10 +19,15 @@ GROUP_ID: int = int(os.getenv("GROUP_ID", "0"))
 GROUP_LINK: str = os.getenv("GROUP_LINK", "https://t.me/group")
 
 # ── Payment ─────────────────────────────────────────────────
-CRYPTOMUS_API_KEY: str = os.getenv("CRYPTOMUS_API_KEY", "")
-CRYPTOMUS_MERCHANT_ID: str = os.getenv("CRYPTOMUS_MERCHANT_ID", "")
-PAYMENT_CURRENCY: str = os.getenv("PAYMENT_CURRENCY", "USDT")
+# BSC (BEP20 USDT)
+WALLET_ADDRESS_BSC:  str = os.getenv("WALLET_ADDRESS_BSC", "")
+BSCSCAN_API_KEY:     str = os.getenv("BSCSCAN_API_KEY", "")
+# ETH (ERC20 USDT)
+WALLET_ADDRESS_ETH:  str = os.getenv("WALLET_ADDRESS_ETH", "")
+ETHERSCAN_API_KEY:   str = os.getenv("ETHERSCAN_API_KEY", "")
+
 PAYMENT_TIMEOUT_MINUTES: int = int(os.getenv("PAYMENT_TIMEOUT_MINUTES", "30"))
+PAYMENT_CURRENCY: str = os.getenv("PAYMENT_CURRENCY", "USDT_BSC")  # USDT_BSC or USDT_ETH
 
 # ── Product ──────────────────────────────────────────────────
 PRODUCT_NAME: str = os.getenv("PRODUCT_NAME", "Gemini Pro 18-Month Subscription")

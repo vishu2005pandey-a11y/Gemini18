@@ -230,7 +230,7 @@ async def toggle_notification(user_id: int, notif_type: str) -> bool:
 # Stock
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def add_stock(product_id: int, links: list[str]) -> int:
+async def add_stock(links: list[str]) -> int:
     """Add links to stock. Returns number of NEW (non-duplicate) links added."""
     db = await get_db()
     now = datetime.utcnow().isoformat()
@@ -241,7 +241,7 @@ async def add_stock(product_id: int, links: list[str]) -> int:
             continue
         try:
             await db.execute(
-                "INSERT INTO stock (product_id, link, added_at) VALUES (?, ?, ?)", (product_id, link, now)
+                "INSERT INTO stock (link, added_at) VALUES (?, ?)", (link, now)
             )
             added += 1
         except aiosqlite.IntegrityError:
@@ -249,20 +249,17 @@ async def add_stock(product_id: int, links: list[str]) -> int:
     await db.commit()
     return added
 
-async def get_stock_count(product_id: int = None) -> int:
+async def get_stock_count() -> int:
     db = await get_db()
-    if product_id is not None:
-        cursor = await db.execute("SELECT COUNT(*) FROM stock WHERE is_sold=0 AND product_id=?", (product_id,))
-    else:
-        cursor = await db.execute("SELECT COUNT(*) FROM stock WHERE is_sold=0")
+    cursor = await db.execute("SELECT COUNT(*) FROM stock WHERE is_sold=0")
     row = await cursor.fetchone()
     return row[0]
 
-async def pop_links(product_id: int, qty: int) -> list[str]:
+async def pop_links(qty: int) -> list[str]:
     """Atomically fetch and mark `qty` unsold links as sold. Returns the links."""
     db = await get_db()
     cursor = await db.execute(
-        "SELECT id, link FROM stock WHERE is_sold=0 AND product_id=? LIMIT ?", (product_id, qty)
+        "SELECT id, link FROM stock WHERE is_sold=0 LIMIT ?", (qty,)
     )
     rows = await cursor.fetchall()
     if len(rows) < qty:
@@ -283,15 +280,15 @@ async def delete_all_stock():
 # Orders
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def create_order(order_id: str, user_id: int, product_id: int, qty: int, amount_usd: float,
+async def create_order(order_id: str, user_id: int, qty: int, amount_usd: float,
                        payment_id: str, address: str, crypto_amount: float,
                        currency: str) -> None:
     db = await get_db()
     now = datetime.utcnow().isoformat()
     await db.execute(
-        "INSERT INTO orders (order_id, user_id, product_id, quantity, amount_usd, payment_id, "
-        "payment_address, crypto_amount, currency, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-        (order_id, user_id, product_id, qty, amount_usd, payment_id, address, crypto_amount, currency, now)
+        "INSERT INTO orders (order_id, user_id, quantity, amount_usd, payment_id, "
+        "payment_address, crypto_amount, currency, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+        (order_id, user_id, qty, amount_usd, payment_id, address, crypto_amount, currency, now)
     )
     await db.commit()
 
@@ -707,7 +704,6 @@ async def get_product(product_id: int) -> aiosqlite.Row | None:
     return await cursor.fetchone()
 
 async def update_product(product_id: int, name: str, description: str, price: float, image_url: str):
-    async with get_db() as db:
         await db.execute(
             "UPDATE products SET name = ?, description = ?, price = ?, image_url = ? WHERE id = ?",
             (name, description, price, image_url, product_id)

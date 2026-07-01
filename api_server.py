@@ -152,16 +152,15 @@ async def create_order_handler(request: web.Request) -> web.Response:
     except Exception:
         return web.json_response({"error": "invalid json"}, status=400)
 
-    user_id = body.get("user_id")
-    product_id = body.get("product_id", 1)
-    qty = body.get("qty", 1)
+    user_id    = body.get("user_id")
+    qty        = body.get("qty", 1)
+    network_key = body.get("network", "USDT_BSC")  # USDT_BSC or USDT_ETH
 
     if not user_id:
         return web.json_response({"error": "missing user_id"}, status=400)
 
     try:
         uid = int(user_id)
-        product_id = int(product_id)
         qty = int(qty)
         if qty < 1:
             raise ValueError
@@ -169,52 +168,41 @@ async def create_order_handler(request: web.Request) -> web.Response:
         return web.json_response({"error": "invalid parameters"}, status=400)
 
     # Check stock
-    stock = await db.get_stock_count(product_id)
+    stock = await db.get_stock_count()
     if stock < qty:
         return web.json_response({"error": "insufficient_stock", "available": stock}, status=409)
 
-    product = await db.get_product(product_id)
-    if not product:
-        return web.json_response({"error": "invalid_product"}, status=404)
-    price = product["price"]
+    price  = await db.get_price()
     amount = round(price * qty, 2)
-    order_id = payments.generate_order_id()
+    usdt_amount = payments.usd_to_usdt(amount)
 
-    # Create Cryptomus invoice
-    invoice = await payments.create_invoice(
-        order_id=order_id,
-        amount_usd=amount,
-        lifetime=PAYMENT_TIMEOUT_MINUTES * 60,
-    )
+    net    = payments.get_network(network_key)
+    wallet = net["address"]
 
-    if not invoice:
-        return web.json_response({"error": "payment_provider_unavailable"}, status=503)
+    if not wallet:
+        return web.json_response({"error": "wallet_not_configured"}, status=503)
 
-    payment_uuid = invoice.get("uuid", "")
-    address = invoice.get("address", "")
-    crypto_amount = float(invoice.get("amount", 0) or 0)
-    currency = invoice.get("currency", "USDT")
-    payment_url = invoice.get("url", "")
+    import time
+    order_id   = payments.generate_order_id()
+    created_ts = int(time.time())
 
-    # Save order to DB
     await db.create_order(
         order_id=order_id,
         user_id=uid,
-        product_id=product_id,
         qty=qty,
         amount_usd=amount,
-        payment_id=payment_uuid,
-        address=address,
-        crypto_amount=crypto_amount,
-        currency=currency,
+        payment_id=str(created_ts),
+        address=wallet,
+        crypto_amount=float(usdt_amount),
+        currency=network_key,
     )
 
     return web.json_response({
         "order_id":      order_id,
-        "address":       address,
-        "crypto_amount": crypto_amount,
-        "currency":      currency,
-        "payment_url":   payment_url,
+        "address":       wallet,
+        "crypto_amount": usdt_amount,
+        "currency":      network_key,
+        "network_label": net["label"],
         "timeout":       PAYMENT_TIMEOUT_MINUTES * 60,
         "amount_usd":    amount,
     })
@@ -234,7 +222,6 @@ async def check_payment_handler(request: web.Request) -> web.Response:
     if not order:
         return web.json_response({"error": "order not found"}, status=404)
 
-    # Already paid — return links
     if order["status"] == "paid":
         links = await db.get_order_links(order_id)
         return web.json_response({"status": "paid", "links": links})
@@ -242,30 +229,28 @@ async def check_payment_handler(request: web.Request) -> web.Response:
     if order["status"] in ("expired", "cancelled"):
         return web.json_response({"status": order["status"], "links": []})
 
-    # Check with Cryptomus
-    payment_uuid = order["payment_id"]
-    if not payment_uuid:
-        return web.json_response({"status": "pending", "links": []})
+    # Verify on-chain
+    network_key  = order["currency"]
+    usdt_amount  = str(order["crypto_amount"])
+    created_ts   = int(order["payment_id"]) if str(order["payment_id"]).isdigit() else 0
+    wallet       = order["payment_address"]
 
-    result = await payments.check_payment(payment_uuid)
-    if not result:
-        return web.json_response({"status": "pending", "links": []})
+    confirmed, tx_hash = await payments.verify_payment(
+        network_key=network_key,
+        wallet=wallet,
+        expected_amount_usdt=usdt_amount,
+        order_id=order_id,
+        created_at_ts=created_ts,
+    )
 
-    payment_status = result.get("payment_status", "")
-
-    if payments.is_payment_confirmed(payment_status):
-        # Pop links and mark paid
-        links = await db.pop_links(order["product_id"], order["quantity"])
+    if confirmed:
+        links = await db.pop_links(order["quantity"])
         if not links:
-            log.error("Out of stock when fulfilling order %s", order_id)
             return web.json_response({"status": "paid", "links": []})
         await db.mark_order_paid(order_id, links)
-
-        # Reward referral
         reward = await db.get_referral_reward()
         await db.reward_referral(order["user_id"], reward)
-
-        return web.json_response({"status": "paid", "links": links})
+        return web.json_response({"status": "paid", "links": links, "tx_hash": tx_hash})
 
     return web.json_response({"status": "pending", "links": []})
 

@@ -1,23 +1,29 @@
 """
 Shop / Purchase flow handler.
+Payment: Direct on-chain USDT (BSC BEP20 or ETH ERC20)
+Verified via BSCScan / Etherscan API — zero fees.
 """
 import logging
+import time
+from datetime import datetime
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import (
+    CallbackQuery, Message, InlineKeyboardButton, InlineKeyboardMarkup
+)
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 import database as db
 import payments as pay
-from config import PAYMENT_TIMEOUT_MINUTES, PRODUCT_NAME, ADMIN_IDS, ADMIN_LOG_GROUP_ID
-from keyboards import shop_product_list_kb, product_detail_kb, terms_kb, payment_kb, after_purchase_kb, back_kb
+from config import PAYMENT_TIMEOUT_MINUTES, PRODUCT_NAME, ADMIN_LOG_GROUP_ID, MINI_APP_URL
+from keyboards import shop_kb, terms_kb, after_purchase_kb, back_kb
 from locales import get as t
 from locales.en import (
     E_CHECK, E_CROSS, E_WARNING, E_FIRE, E_DIAMOND, E_TROPHY,
-    E_LIGHTNING, E_MONEY, E_CART, E_PACKAGE, E_SHIELD, E_CHART,
-    E_GIFT, E_STAR, E_BELL, E_CROWN, E_SEARCH, E_ANNOUNCE,
+    E_LIGHTNING, E_MONEY, E_CART, E_PACKAGE, E_SHIELD, E_STAR,
+    E_GIFT, E_CLOCK, E_CHART, E_KEY,
 )
-from datetime import datetime
 
 log = logging.getLogger(__name__)
 router = Router()
@@ -25,7 +31,6 @@ router = Router()
 
 class BuyStates(StatesGroup):
     waiting_custom_qty = State()
-    waiting_review_comment = State()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -38,48 +43,32 @@ async def cb_shop(callback: CallbackQuery):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    products = await db.get_products()
-    stock_map = {}
-    for p in products:
-        stock_map[p["id"]] = await db.get_stock_count(p["id"])
-    text = t(lang, "shop_list_header")
+    price = await db.get_price()
+    stock = await db.get_stock_count()
+    total_sold = await db.get_total_links_sold()
+    avg_rating, review_count = await db.get_avg_rating()
+
+    stars = "⭐" * round(avg_rating) if avg_rating else "☆☆☆☆☆"
+    text = t(lang, "shop_header") + t(
+        lang, "product_card",
+        name=PRODUCT_NAME,
+        price=f"{price:.2f}",
+        stock=stock,
+        sold=f"{total_sold:,}",
+        rating=stars,
+        review_count=review_count,
+    )
     await callback.message.edit_text(
         text,
-        reply_markup=shop_product_list_kb(lang, products, stock_map),
+        reply_markup=shop_kb(lang, price, in_stock=stock > 0, mini_app_url=MINI_APP_URL),
         parse_mode="HTML"
     )
     await callback.answer()
 
-@router.callback_query(F.data.startswith("view_prod:"))
-async def cb_view_prod(callback: CallbackQuery):
-    user_id = callback.from_user.id
-    db_user = await db.get_user(user_id)
-    lang = db_user["language"] if db_user else "en"
-    
-    prod_id = int(callback.data.split(":")[1])
-    p = await db.get_product(prod_id)
-    if not p: return await callback.answer("Product not found.", show_alert=True)
-    
-    stock = await db.get_stock_count(prod_id)
-    sold = p['sold_count'] if 'sold_count' in p.keys() else 123
-    
-    text = t(lang, "shop_header") + t(
-        lang, "product_card",
-        name=p['name'],
-        price=f"{p['price']:.2f}",
-        stock=stock,
-        sold=f"{sold:,}",
-        rating="⭐⭐⭐⭐⭐",
-        review_count=12,
-    )
-    text = text.replace("Premium Gemini AI Pro access for 18 months.", p['description'] or "")
-    
-    await callback.message.edit_text(
-        text,
-        reply_markup=product_detail_kb(lang, prod_id, p['price'], stock > 0),
-        parse_mode="HTML"
-    )
-    await callback.answer()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Buy — quantity selection
+# ─────────────────────────────────────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("buy:"))
 async def cb_buy(callback: CallbackQuery, state: FSMContext):
@@ -87,24 +76,22 @@ async def cb_buy(callback: CallbackQuery, state: FSMContext):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    parts = callback.data.split(":")
-    prod_id = int(parts[1])
-    qty_str = parts[2]
+    qty_str = callback.data.split(":")[1]
 
     if qty_str == "custom":
         await callback.message.edit_text(
             t(lang, "custom_qty_prompt"),
-            reply_markup=back_kb(lang, f"view_prod:{prod_id}"),
+            reply_markup=back_kb(lang, "shop"),
             parse_mode="HTML"
         )
-        await state.update_data(buy_prod_id=prod_id)
         await state.set_state(BuyStates.waiting_custom_qty)
         await callback.answer()
         return
 
     qty = int(qty_str)
-    await _show_terms(callback, lang, prod_id, qty)
+    await _show_terms(callback, lang, qty)
     await callback.answer()
+
 
 @router.message(BuyStates.waiting_custom_qty)
 async def msg_custom_qty(message: Message, state: FSMContext):
@@ -112,10 +99,6 @@ async def msg_custom_qty(message: Message, state: FSMContext):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    data = await state.get_data()
-    prod_id = data.get("buy_prod_id")
-    if not prod_id: return
-    
     try:
         qty = int(message.text.strip())
         if not 1 <= qty <= 100:
@@ -125,29 +108,37 @@ async def msg_custom_qty(message: Message, state: FSMContext):
         return
 
     await state.clear()
-    stock = await db.get_stock_count(prod_id)
+    stock = await db.get_stock_count()
     if qty > stock:
         await message.answer(t(lang, "insufficient_stock", stock=stock), parse_mode="HTML")
         return
+    price = await db.get_price()
+    total = round(price * qty, 2)
+    await message.answer(
+        t(lang, "terms"),
+        reply_markup=terms_kb(lang, qty),
+        parse_mode="HTML"
+    )
 
-    text = t(lang, "terms")
-    await message.answer(text, reply_markup=terms_kb(lang, prod_id, qty), parse_mode="HTML")
 
-async def _show_terms(callback: CallbackQuery, lang: str, prod_id: int, qty: int):
-    stock = await db.get_stock_count(prod_id)
+async def _show_terms(callback: CallbackQuery, lang: str, qty: int):
+    stock = await db.get_stock_count()
     if qty > stock:
         await callback.message.edit_text(
             t(lang, "insufficient_stock", stock=stock),
-            reply_markup=back_kb(lang, f"view_prod:{prod_id}"),
+            reply_markup=back_kb(lang, "shop"),
             parse_mode="HTML"
         )
         return
-    text = t(lang, "terms")
-    await callback.message.edit_text(text, reply_markup=terms_kb(lang, prod_id, qty), parse_mode="HTML")
+    await callback.message.edit_text(
+        t(lang, "terms"),
+        reply_markup=terms_kb(lang, qty),
+        parse_mode="HTML"
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Terms agreed — create invoice
+# Terms agreed — network selection
 # ─────────────────────────────────────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("agree:"))
@@ -156,82 +147,140 @@ async def cb_agree(callback: CallbackQuery):
     db_user = await db.get_user(user_id)
     lang = db_user["language"] if db_user else "en"
 
-    parts = callback.data.split(":")
-    prod_id = int(parts[1])
-    qty = int(parts[2])
-
-    p = await db.get_product(prod_id)
-    price = p['price']
+    qty = int(callback.data.split(":")[1])
+    price = await db.get_price()
     total = round(price * qty, 2)
+    usdt_amount = pay.usd_to_usdt(total)
 
-    # Check if user has a pending order already
+    # Show network selection
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text=f"🟡 USDT BEP20 (BSC)  — ${total:.2f}",
+            callback_data=f"pay_network:USDT_BSC:{qty}"
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=f"🔷 USDT ERC20 (ETH)  — ${total:.2f}",
+            callback_data=f"pay_network:USDT_ETH:{qty}"
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="shop")
+    )
+
+    text = (
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{E_CART} <b>SELECT PAYMENT NETWORK</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"{E_PACKAGE} <b>Product:</b> {PRODUCT_NAME}\n"
+        f"🔢 <b>Quantity:</b> {qty}× link(s)\n"
+        f"{E_MONEY} <b>Total:</b>  <code>{usdt_amount} USDT</code>\n\n"
+        f"Choose your payment network 👇"
+    )
+    await callback.message.edit_text(text, reply_markup=builder.as_markup(), parse_mode="HTML")
+    await callback.answer()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Network selected — show payment address
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.callback_query(F.data.startswith("pay_network:"))
+async def cb_pay_network(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    db_user = await db.get_user(user_id)
+    lang = db_user["language"] if db_user else "en"
+
+    _, network_key, qty_str = callback.data.split(":")
+    qty = int(qty_str)
+    price = await db.get_price()
+    total = round(price * qty, 2)
+    usdt_amount = pay.usd_to_usdt(total)
+
+    # Check for existing pending order
     existing = await db.get_pending_order_for_user(user_id)
     if existing:
-        await callback.answer("⏳ You have a pending order. Please complete or cancel it first.", show_alert=True)
+        await callback.answer(
+            "⏳ You have a pending order. Please complete or cancel it first.",
+            show_alert=True
+        )
         return
 
     # Check stock
-    stock = await db.get_stock_count(prod_id)
+    stock = await db.get_stock_count()
     if qty > stock:
         await callback.message.edit_text(
             t(lang, "insufficient_stock", stock=stock),
-            reply_markup=back_kb(lang, f"view_prod:{prod_id}"),
-            parse_mode="HTML"
-        )
-        await callback.answer()
-        return
-
-    # Create Cryptomus invoice
-    order_id = pay.generate_order_id()
-    invoice = await pay.create_invoice(
-        order_id=order_id,
-        amount_usd=total,
-        lifetime=PAYMENT_TIMEOUT_MINUTES * 60,
-    )
-
-    if not invoice:
-        await callback.message.edit_text(
-            t(lang, "error_generic"),
             reply_markup=back_kb(lang, "shop"),
             parse_mode="HTML"
         )
         await callback.answer()
         return
 
-    payment_uuid = invoice.get("uuid", "")
-    address = invoice.get("address", "N/A")
-    crypto_amount = float(invoice.get("payer_amount") or invoice.get("amount") or total)
-    currency = invoice.get("payer_currency") or invoice.get("to_currency") or "USDT"
-    pay_url = invoice.get("url", "")
+    # Get network info
+    net = pay.get_network(network_key)
+    wallet = net["address"]
+    order_id = pay.generate_order_id()
+    created_ts = int(time.time())
 
+    if not wallet:
+        await callback.answer(
+            f"⚠️ {net['label']} wallet not configured. Contact admin.",
+            show_alert=True
+        )
+        return
+
+    # Save order
     await db.create_order(
         order_id=order_id,
         user_id=user_id,
-        product_id=prod_id,
         qty=qty,
         amount_usd=total,
-        payment_id=payment_uuid,
-        address=address,
-        crypto_amount=crypto_amount,
-        currency=currency,
+        payment_id=str(created_ts),   # store timestamp as payment_id
+        address=wallet,
+        crypto_amount=float(usdt_amount),
+        currency=network_key,
     )
 
-    text = t(
-        lang, "payment_invoice",
-        product=p['name'],
-        qty=qty,
-        total=f"{total:.2f}",
-        currency=currency,
-        crypto_amount=crypto_amount,
-        address=address,
-        timeout=PAYMENT_TIMEOUT_MINUTES,
-        order_id=order_id,
+    # Build invoice message
+    network_icon = "🟡" if network_key == "USDT_BSC" else "🔷"
+    text = (
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{E_MONEY} <b>PAYMENT INVOICE</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"{E_CART} <b>Product:</b>  {PRODUCT_NAME}\n"
+        f"🔢 <b>Quantity:</b> {qty}× link(s)\n"
+        f"{E_MONEY} <b>Total:</b>   <code>{usdt_amount} USDT</code>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{network_icon} <b>Network:</b>  {net['label']}\n\n"
+        f"{E_KEY} <b>Send EXACTLY:</b>\n"
+        f"<code>{usdt_amount} USDT</code>\n\n"
+        f"📋 <b>To Address:</b>\n"
+        f"<code>{wallet}</code>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{E_CLOCK} <b>Expires in:</b> {PAYMENT_TIMEOUT_MINUTES} minutes\n"
+        f"🆔 <b>Order ID:</b> <code>{order_id}</code>\n\n"
+        f"{E_WARNING} Send EXACT amount. Wrong amount = not detected.\n"
+        f"{E_LIGHTNING} After sending, tap <b>Check Payment</b>."
     )
-    await callback.message.edit_text(
-        text,
-        reply_markup=payment_kb(lang, order_id, pay_url),
-        parse_mode="HTML"
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="🔄  Check Payment",
+            callback_data=f"check_pay:{order_id}"
+        )
     )
+    builder.row(
+        InlineKeyboardButton(
+            text="❌  Cancel Order",
+            callback_data=f"cancel_pay:{order_id}"
+        )
+    )
+
+    await callback.message.edit_text(text, reply_markup=builder.as_markup(), parse_mode="HTML")
     await callback.answer()
 
 
@@ -265,39 +314,52 @@ async def cb_check_pay(callback: CallbackQuery):
         await callback.answer()
         return
 
-    # Query Cryptomus
-    payment_info = await pay.check_payment(order["payment_id"])
-    if not payment_info:
-        await callback.answer(t(lang, "payment_pending"), show_alert=True)
-        return
+    # Verify on-chain
+    network_key   = order["currency"]
+    usdt_amount   = str(order["crypto_amount"])
+    created_ts    = int(order["payment_id"]) if order["payment_id"].isdigit() else 0
+    wallet        = order["payment_address"]
 
-    status = payment_info.get("payment_status", "")
-    if pay.is_payment_confirmed(status):
-        await _deliver_order(callback, order, lang)
+    await callback.answer("🔍 Checking blockchain...", show_alert=False)
+
+    confirmed, tx_hash = await pay.verify_payment(
+        network_key=network_key,
+        wallet=wallet,
+        expected_amount_usdt=usdt_amount,
+        order_id=order_id,
+        created_at_ts=created_ts,
+    )
+
+    if confirmed:
+        await _deliver_order(callback, order, lang, tx_hash)
     else:
-        await callback.answer(t(lang, "payment_pending"), show_alert=True)
+        net = pay.get_network(network_key)
+        await callback.answer(
+            f"⏳ Payment not found on {net['label']} yet.\n"
+            f"Please wait for blockchain confirmation and try again.",
+            show_alert=True
+        )
 
 
-async def _deliver_order(callback: CallbackQuery, order, lang: str):
+async def _deliver_order(callback: CallbackQuery, order, lang: str, tx_hash: str | None = None):
     """Deliver links and complete the order."""
     order_id = order["order_id"]
-    user_id = order["user_id"]
-    qty = order["quantity"]
+    user_id  = order["user_id"]
+    qty      = order["quantity"]
 
-    # Pop links atomically
     links = await db.pop_links(qty)
     if not links:
         await callback.answer(f"{E_CROSS} Out of stock! Contact support.", show_alert=True)
         return
 
-    # Mark order paid
     await db.mark_order_paid(order_id, links)
 
-    # Format links for delivery
     formatted_links = "\n".join(f"<code>{i+1}. {link}</code>" for i, link in enumerate(links))
+    net = pay.get_network(order["currency"])
+    tx_line = f"\n🔗 <b>TX:</b> <a href='{net['explorer']}{tx_hash}'>View on Explorer</a>" if tx_hash else ""
 
-    text = t(lang, "delivery_success", links=formatted_links, order_id=order_id)
-    # Send animated sticker before delivery
+    text = t(lang, "delivery_success", links=formatted_links, order_id=order_id) + tx_line
+
     from stickers import send_sticker
     await send_sticker(callback.bot, callback.message.chat.id, "success")
     await callback.message.edit_text(
@@ -308,13 +370,13 @@ async def _deliver_order(callback: CallbackQuery, order, lang: str):
     await callback.answer(f"{E_CHECK} Payment confirmed!")
 
     # Post-purchase processing
-    user = await db.get_user(user_id)
-    username = user["username"] or "unknown" if user else "unknown"
-    stats = await db.get_user_stats(user_id)
+    user     = await db.get_user(user_id)
+    username = (user["username"] or "unknown") if user else "unknown"
+    stats    = await db.get_user_stats(user_id)
 
-    # Check and unlock achievements
-    new_achievements = await db.check_and_unlock_achievements(user_id, stats["links"])
-    for ach_key in new_achievements:
+    # Achievements
+    new_ach = await db.check_and_unlock_achievements(user_id, stats["links"])
+    for ach_key in new_ach:
         from config import ACHIEVEMENTS
         label = ACHIEVEMENTS[ach_key]["label"]
         try:
@@ -324,7 +386,7 @@ async def _deliver_order(callback: CallbackQuery, order, lang: str):
         except Exception:
             pass
 
-    # Badge update notification
+    # Badge
     from database import compute_badge
     new_badge = compute_badge(stats["links"])
     old_badge = compute_badge(stats["links"] - qty)
@@ -337,7 +399,7 @@ async def _deliver_order(callback: CallbackQuery, order, lang: str):
             pass
 
     # Referral reward
-    reward = await db.get_referral_reward()
+    reward      = await db.get_referral_reward()
     referrer_id = await db.reward_referral(user_id, reward)
     if referrer_id:
         try:
@@ -352,19 +414,22 @@ async def _deliver_order(callback: CallbackQuery, order, lang: str):
             pass
 
     # Admin purchase log
-    await _send_purchase_log(callback.bot, user_id, username, order_id, qty,
-                              order["amount_usd"], order["currency"])
+    await _send_purchase_log(
+        callback.bot, user_id, username, order_id, qty,
+        order["amount_usd"], net["label"], tx_hash
+    )
 
-    # Auto-post to channel/group
+    # Broadcast to channel/group
     await _broadcast_purchase(callback.bot, username, qty)
 
 
 async def _send_purchase_log(bot, user_id: int, username: str, order_id: str,
-                              qty: int, amount: float, method: str):
-    from config import ADMIN_LOG_GROUP_ID
+                              qty: int, amount: float, method: str, tx_hash: str | None):
     if not ADMIN_LOG_GROUP_ID:
         return
     now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    net_key = method
+    tx_line = f"\n🔗 TX: <code>{tx_hash}</code>" if tx_hash else ""
     text = (
         "━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{E_CART} <b>NEW PURCHASE</b>\n"
@@ -374,7 +439,8 @@ async def _send_purchase_log(bot, user_id: int, username: str, order_id: str,
         f"🔢 <b>Quantity:</b>  {qty}× link(s)\n"
         f"{E_MONEY} <b>Amount:</b>    <code>${amount:.2f}</code>\n"
         f"💱 <b>Method:</b>    {method}\n"
-        f"📅 <b>Date:</b>      {now}\n"
+        f"📅 <b>Date:</b>      {now}"
+        f"{tx_line}\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
     try:
@@ -384,36 +450,31 @@ async def _send_purchase_log(bot, user_id: int, username: str, order_id: str,
 
 
 async def _broadcast_purchase(bot, username: str, qty: int):
-    from config import CHANNEL_ID, GROUP_ID, PRODUCT_NAME
+    from config import CHANNEL_ID, GROUP_ID
     import os
     mini_app_url = os.getenv("MINI_APP_URL", "")
-
     text = (
         f"{E_CART} Someone just bought <b>{qty}×</b> {E_STAR} {PRODUCT_NAME}!\n"
         f"<i>Be the next — tap below!</i>"
     )
-
-    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-    from aiogram.utils.keyboard import InlineKeyboardBuilder
-
     builder = InlineKeyboardBuilder()
     if mini_app_url:
+        from aiogram.types import WebAppInfo
         builder.row(InlineKeyboardButton(
             text="🛍️ Open Mini App",
-            web_app={"url": mini_app_url}
+            web_app=WebAppInfo(url=mini_app_url)
         ))
     builder.row(InlineKeyboardButton(
-        text=f"🤖 Buy {PRODUCT_NAME}",
+        text=f"🛒 Buy {PRODUCT_NAME}",
         callback_data="shop"
     ))
     kb = builder.as_markup()
-
     for chat_id in [CHANNEL_ID, GROUP_ID]:
         if chat_id:
             try:
                 await bot.send_message(chat_id, text, reply_markup=kb, parse_mode="HTML")
             except Exception as e:
-                log.warning("Failed to broadcast purchase to %s: %s", chat_id, e)
+                log.warning("Broadcast failed to %s: %s", chat_id, e)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
