@@ -42,21 +42,10 @@ def main_menu_kb(lang: str = "en", mini_app_url: str = "") -> InlineKeyboardMark
             )
         )
 
-    # ── Shop button GREEN — use web_app with mini_app_url or url fallback ──
-    if mini_app_url:
-        # WebApp button = GREEN background in Telegram
-        builder.row(
-            InlineKeyboardButton(
-                text=t(lang, "btn_shop"),
-                web_app=WebAppInfo(url=mini_app_url),
-                style="success"
-            )
-        )
-    else:
-        # No mini app — normal callback (blue)
-        builder.row(
-            InlineKeyboardButton(text=t(lang, "btn_shop"), callback_data="shop", style="success")
-        )
+    # 🟢 Shop button GREEN 🟢
+    builder.row(
+        InlineKeyboardButton(text=t(lang, "btn_shop"), callback_data="shop", style="success")
+    )
 
     builder.row(
         InlineKeyboardButton(text=t(lang, "btn_profile"), callback_data="profile"),
