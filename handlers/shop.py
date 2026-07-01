@@ -219,19 +219,19 @@ async def cb_agree(callback: CallbackQuery):
 
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(
-        text=f"🟡 Binance Pay — ${total:.2f}",
+        text=f"Binance Pay — ${total:.2f}",
         callback_data=f"pay_network:BINANCE_PAY:{qty}"
     ))
     builder.row(InlineKeyboardButton(
-        text=f"🔶 USDT BEP20 (BSC) — ${total:.2f}",
+        text=f"USDT BEP20 (BSC) — ${total:.2f}",
         callback_data=f"pay_network:USDT_BSC:{qty}"
     ))
     builder.row(InlineKeyboardButton(
-        text=f"🔴 USDT TRC20 (Tron) — ${total:.2f}",
+        text=f"USDT TRC20 (Tron) — ${total:.2f}",
         callback_data=f"pay_network:USDT_TRC20:{qty}"
     ))
     builder.row(InlineKeyboardButton(
-        text=f"🔷 USDT ERC20 (ETH) — ${total:.2f}",
+        text=f"USDT ERC20 (ETH) — ${total:.2f}",
         callback_data=f"pay_network:USDT_ETH:{qty}"
     ))
     builder.row(InlineKeyboardButton(
